@@ -61,6 +61,15 @@ export function ProfileDropdown() {
           {/* Menu Items */}
           <div className="py-2">
             <button
+              onClick={() => handleNavigation('/me')}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.3-1.54c-.2-.24-.58-.27-.81-.08-.24.2-.27.57-.08.81l1.98 2.36c.12.15.3.23.48.23.17 0 .35-.08.47-.23l3.53-4.36c.21-.26.16-.64-.1-.85-.26-.21-.64-.16-.84.1z" />
+              </svg>
+              Me
+            </button>
+            <button
               onClick={() => handleNavigation('/profile')}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
             >

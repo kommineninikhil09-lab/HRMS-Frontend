@@ -54,7 +54,7 @@ const ChartIcon = () => (
 
 const navItems = [
   { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['admin', 'employee', 'manager'] },
-  { id: 'me', label: 'Me', icon: PersonIcon, href: '/profile', roles: ['admin', 'employee', 'manager'] },
+  { id: 'me', label: 'Me', icon: PersonIcon, href: '/me', roles: ['admin', 'employee', 'manager'] },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['admin', 'employee', 'manager'] },
   { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['manager', 'admin'] },
   { id: 'finances', label: 'My Finances', icon: CreditCardIcon, href: '/payslips', roles: ['admin', 'employee', 'manager'] },
