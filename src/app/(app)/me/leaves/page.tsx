@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LeavesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedTab, setSelectedTab] = useState('summary');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'apply') {
+      setIsModalOpen(true);
+    }
+  }, [searchParams]);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [leaveType, setLeaveType] = useState('');

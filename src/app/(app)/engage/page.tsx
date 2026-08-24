@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const HeartIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -15,7 +16,15 @@ const CommentIcon = () => (
 );
 
 export default function EngagePage() {
+  const searchParams = useSearchParams();
   const [selectedTab, setSelectedTab] = useState('post');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'post' || tab === 'poll' || tab === 'praise') {
+      setSelectedTab(tab);
+    }
+  }, [searchParams]);
   const [postContent, setPostContent] = useState('');
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '', '']);
