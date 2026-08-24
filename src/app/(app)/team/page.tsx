@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePermission } from '@/lib/auth/usePermission';
 
 const PhoneIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -56,6 +57,7 @@ const teamMembers = [
 const avatarColors = ['from-blue-600 to-indigo-600', 'from-emerald-600 to-teal-600', 'from-purple-600 to-indigo-600', 'from-rose-600 to-pink-600'];
 
 export default function TeamPage() {
+  usePermission(['manager', 'admin']);
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePermission } from '@/lib/auth/usePermission';
 
 const SearchIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -21,6 +22,7 @@ const employees = [
 ];
 
 export default function EmployeesPage() {
+  usePermission(['admin']);
   const [selectedTab, setSelectedTab] = useState('employees');
 
   return (
