@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import RoleAssignmentModal from './components/RoleAssignmentModal';
 
 interface User {
   id: string;
@@ -13,19 +14,32 @@ interface User {
   permissions: string[];
 }
 
-export default function UserDetailPage({ params }: { params: { id: string } }) {
+export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const [paramId, setParamId] = useState<string | null>(null);
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showRoleModal, setShowRoleModal] = useState(false);
 
   useEffect(() => {
-    fetchUser();
-  }, [params.id]);
+    const getParams = async () => {
+      const { id } = await params;
+      setParamId(id);
+    };
+    getParams();
+  }, [params]);
+
+  useEffect(() => {
+    if (paramId) {
+      fetchUser();
+    }
+  }, [paramId]);
 
   const fetchUser = async () => {
+    if (!paramId) return;
     try {
-      const response = await fetch(`/api/admin/users/${params.id}`, {
+      const response = await fetch(`/api/admin/users/${paramId}`, {
         credentials: 'include',
       });
 
@@ -39,6 +53,24 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRoleAdded = (role: { id: string; name: string }) => {
+    if (user) {
+      setUser({
+        ...user,
+        roles: [...user.roles, role],
+      });
+    }
+  };
+
+  const handleRoleRemoved = (roleId: string) => {
+    if (user) {
+      setUser({
+        ...user,
+        roles: user.roles.filter(r => r.id !== roleId),
+      });
     }
   };
 
@@ -153,7 +185,10 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
                 <button className="w-full px-4 py-2 border border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors font-medium">
                   Edit User
                 </button>
-                <button className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium">
+                <button
+                  onClick={() => setShowRoleModal(true)}
+                  className="w-full px-4 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium"
+                >
                   Manage Roles
                 </button>
                 <button className="w-full px-4 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium">
@@ -164,6 +199,15 @@ export default function UserDetailPage({ params }: { params: { id: string } }) {
           </div>
         </div>
       </div>
+
+      <RoleAssignmentModal
+        userId={paramId || ''}
+        assignedRoles={user?.roles || []}
+        isOpen={showRoleModal}
+        onClose={() => setShowRoleModal(false)}
+        onRoleAdded={handleRoleAdded}
+        onRoleRemoved={handleRoleRemoved}
+      />
     </div>
   );
 }
