@@ -26,12 +26,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status: response.status });
     }
 
-    // Extract user data (handle nested response structure from backend)
-    const userData = data.data?.data || data.data;
-
     // Transform backend response to frontend schema
     // Normalize role name: map backend roles to frontend roles
-    const backendRole = userData.roles?.[0]?.name || 'employee';
+    const backendRole = data.data.roles?.[0]?.name || 'employee';
     const roleMapping: Record<string, string> = {
       'admin': 'admin',
       'Admin': 'admin',
@@ -52,12 +49,12 @@ export async function GET(req: NextRequest) {
     const transformedData = {
       success: data.success,
       data: {
-        id: userData.id,
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
+        id: data.data.id,
+        email: data.data.email,
+        firstName: data.data.firstName,
+        lastName: data.data.lastName,
         role: normalizedRole,
-        permissions: userData.permissions || [],
+        permissions: data.data.permissions || [],
       },
     };
 

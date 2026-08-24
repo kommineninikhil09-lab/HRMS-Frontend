@@ -52,12 +52,6 @@ const ChartIcon = () => (
   </svg>
 );
 
-const AdminIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10h-4v2h4v4h2v-4h4v-2h-4v-4h-2v4z" />
-  </svg>
-);
-
 const navItems = [
   { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['admin', 'employee', 'manager'] },
   { id: 'me', label: 'Me', icon: PersonIcon, href: '/me', roles: ['admin', 'employee', 'manager'] },
@@ -67,7 +61,6 @@ const navItems = [
   { id: 'org', label: 'Org', icon: BuildingIcon, href: '/employees', roles: ['admin'] },
   { id: 'engage', label: 'Engage', icon: SparklesIcon, href: '/engage', roles: ['admin', 'employee', 'manager'] },
   { id: 'perf', label: 'Perf', icon: ChartIcon, href: '/performance', roles: ['admin', 'employee', 'manager'] },
-  { id: 'admin', label: 'Admin', icon: AdminIcon, href: '/admin', roles: ['admin'] },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
