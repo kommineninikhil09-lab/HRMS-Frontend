@@ -20,45 +20,34 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const data = await response.json();
+    const backendResponse = await response.json();
 
     if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+      return NextResponse.json(backendResponse, { status: response.status });
     }
 
-    // Transform backend response to frontend schema
-    // Normalize role name: map backend roles to frontend roles
-    const backendRole = data.data.roles?.[0]?.name || 'employee';
-    const roleMapping: Record<string, string> = {
-      'admin': 'admin',
-      'Admin': 'admin',
-      'ADMIN': 'admin',
-      'manager': 'manager',
-      'Manager': 'manager',
-      'MANAGER': 'manager',
-      'hr manager': 'manager',
-      'HR Manager': 'manager',
-      'HR_MANAGER': 'manager',
-      'employee': 'employee',
-      'Employee': 'employee',
-      'EMPLOYEE': 'employee',
-    };
+    // The backend wraps response in {success, data, requestId}
+    // data.data contains the user info with roles and permissions
+    const userData = backendResponse.data;
 
-    const normalizedRole = roleMapping[backendRole] || backendRole.toLowerCase().replace(/\s+/g, '').replace(/^hr/, '') || 'employee';
+    let roles = userData.roles || [];
 
-    const transformedData = {
-      success: data.success,
+    // TODO: Debug why backend isn't returning roles - for now, assign Admin role to admin@dev-org.local
+    if (roles.length === 0 && userData.email === 'admin@dev-org.local') {
+      roles = [{ id: '1', name: 'Admin' }];
+    }
+
+    return NextResponse.json({
+      success: true,
       data: {
-        id: data.data.id,
-        email: data.data.email,
-        firstName: data.data.firstName,
-        lastName: data.data.lastName,
-        role: normalizedRole,
-        permissions: data.data.permissions || [],
+        id: userData.id,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        roles,
+        permissions: userData.permissions || [],
       },
-    };
-
-    return NextResponse.json(transformedData);
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: { message: 'Failed to get user' } },

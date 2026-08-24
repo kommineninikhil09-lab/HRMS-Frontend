@@ -52,15 +52,21 @@ const ChartIcon = () => (
   </svg>
 );
 
+const AdminIcon = () => (
+  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+  </svg>
+);
+
 const navItems = [
-  { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['admin', 'employee', 'manager'] },
-  { id: 'me', label: 'Me', icon: PersonIcon, href: '/me', roles: ['admin', 'employee', 'manager'] },
-  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['admin', 'employee', 'manager'] },
-  { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['manager', 'admin'] },
-  { id: 'finances', label: 'My Finances', icon: CreditCardIcon, href: '/payslips', roles: ['admin', 'employee', 'manager'] },
-  { id: 'org', label: 'Org', icon: BuildingIcon, href: '/employees', roles: ['admin'] },
-  { id: 'engage', label: 'Engage', icon: SparklesIcon, href: '/engage', roles: ['admin', 'employee', 'manager'] },
-  { id: 'perf', label: 'Perf', icon: ChartIcon, href: '/performance', roles: ['admin', 'employee', 'manager'] },
+  { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
+  { id: 'me', label: 'Me', icon: PersonIcon, href: '/me', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
+  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
+  { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['manager', 'Admin', 'Super Admin'] },
+  { id: 'finances', label: 'My Finances', icon: CreditCardIcon, href: '/payslips', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
+  { id: 'admin', label: 'Admin', icon: AdminIcon, href: '/admin', roles: ['Admin', 'Super Admin'] },
+  { id: 'engage', label: 'Engage', icon: SparklesIcon, href: '/engage', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
+  { id: 'perf', label: 'Perf', icon: ChartIcon, href: '/performance', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -86,8 +92,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const filteredNavItems = navItems.filter((item) => {
-    if (!user) return false;
-    return item.roles.includes(user.role);
+    if (!user || !user.roles) return false;
+    return user.roles.some((role: any) => item.roles.includes(role.name));
   });
 
   return (
@@ -129,8 +135,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Logout Button at Bottom */}
         <button
           onClick={async () => {
-            await user && user.length > 0;
-            const router = useRouter ? null : null;
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
             window.location.href = '/login';
           }}

@@ -8,16 +8,18 @@ export function usePermission(requiredRoles: RequiredRole[]) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
+  const hasRequiredRole = user?.roles?.some(role => requiredRoles.includes(role.name.toLowerCase() as RequiredRole));
+
   useEffect(() => {
     if (isLoading) return;
 
-    if (!user || !requiredRoles.includes(user.role as RequiredRole)) {
+    if (!user || !hasRequiredRole) {
       router.push('/');
     }
-  }, [user, isLoading, requiredRoles, router]);
+  }, [user, isLoading, requiredRoles, router, hasRequiredRole]);
 
   return {
-    hasAccess: user && requiredRoles.includes(user.role as RequiredRole),
+    hasAccess: hasRequiredRole,
     isLoading,
     user,
   };

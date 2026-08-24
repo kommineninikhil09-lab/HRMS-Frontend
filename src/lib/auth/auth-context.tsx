@@ -7,7 +7,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: string;
+  roles: Array<{ id: string; name: string }>;
   permissions: string[];
 }
 
