@@ -27,12 +27,24 @@ export async function GET(req: NextRequest) {
     }
 
     // Transform backend response to frontend schema
-    // Normalize role name: 'HR Manager' -> 'manager', 'Admin' -> 'admin', etc.
-    const roleName = data.data.roles?.[0]?.name || 'employee';
-    const normalizedRole = roleName.toLowerCase()
-      .replace(/\s+/g, '') // Remove spaces: 'HR Manager' -> 'hrmanager'
-      .replace(/^hr/, '') // Remove 'hr' prefix: 'hrmanager' -> 'manager'
-      || 'employee'; // Fallback to employee
+    // Normalize role name: map backend roles to frontend roles
+    const backendRole = data.data.roles?.[0]?.name || 'employee';
+    const roleMapping: Record<string, string> = {
+      'admin': 'admin',
+      'Admin': 'admin',
+      'ADMIN': 'admin',
+      'manager': 'manager',
+      'Manager': 'manager',
+      'MANAGER': 'manager',
+      'hr manager': 'manager',
+      'HR Manager': 'manager',
+      'HR_MANAGER': 'manager',
+      'employee': 'employee',
+      'Employee': 'employee',
+      'EMPLOYEE': 'employee',
+    };
+
+    const normalizedRole = roleMapping[backendRole] || backendRole.toLowerCase().replace(/\s+/g, '').replace(/^hr/, '') || 'employee';
 
     const transformedData = {
       success: data.success,
