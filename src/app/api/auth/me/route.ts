@@ -27,6 +27,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Transform backend response to frontend schema
+    // Normalize role name: 'HR Manager' -> 'manager', 'Admin' -> 'admin', etc.
+    const roleName = data.data.roles?.[0]?.name || 'employee';
+    const normalizedRole = roleName.toLowerCase()
+      .replace(/\s+/g, '') // Remove spaces: 'HR Manager' -> 'hrmanager'
+      .replace(/^hr/, '') // Remove 'hr' prefix: 'hrmanager' -> 'manager'
+      || 'employee'; // Fallback to employee
+
     const transformedData = {
       success: data.success,
       data: {
@@ -34,7 +41,7 @@ export async function GET(req: NextRequest) {
         email: data.data.email,
         firstName: data.data.firstName,
         lastName: data.data.lastName,
-        role: data.data.roles?.[0]?.name || 'employee', // Get first role or default to employee
+        role: normalizedRole,
         permissions: data.data.permissions || [],
       },
     };
