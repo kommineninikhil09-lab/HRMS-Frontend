@@ -5,7 +5,6 @@ import { useAuth } from '@/lib/auth/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   HomeIcon,
-  PersonIcon,
   InboxIcon,
   TeamIcon,
   WalletIcon,
@@ -14,8 +13,6 @@ import {
   CalendarIcon,
   BriefcaseIcon,
   TrendingUpIcon,
-  GraduationCapIcon,
-  CompassIcon,
   MessageCircleIcon,
   BarChartIcon,
   GridIcon,
@@ -43,7 +40,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['admin', 'employee', 'manager'] },
-  { id: 'me', label: 'Me', icon: PersonIcon, href: '/me', roles: ['admin', 'employee', 'manager'] },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['admin', 'employee', 'manager'] },
   { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['manager', 'admin'] },
   { id: 'org', label: 'Employees', icon: TeamIcon, href: '/employees', roles: ['admin'] },
@@ -52,9 +48,18 @@ const navItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: CalendarCheckIcon, href: '/attendance', roles: ['admin', 'employee', 'manager'] },
   { id: 'leave', label: 'Leave', icon: CalendarIcon, href: '/leave', roles: ['admin', 'employee', 'manager'] },
   { id: 'expenses', label: 'Expenses & Travel', icon: BriefcaseIcon, href: '/expenses', roles: ['admin', 'employee', 'manager'] },
-  { id: 'perf', label: 'Performance', icon: TrendingUpIcon, href: '/performance', roles: ['admin', 'employee', 'manager'] },
-  { id: 'learning', label: 'Learning', icon: GraduationCapIcon, href: '/learning', roles: ['admin', 'employee', 'manager'] },
-  { id: 'career', label: 'Career', icon: CompassIcon, href: '/career', roles: ['admin', 'employee', 'manager'] },
+  {
+    id: 'perf',
+    label: 'Performance',
+    icon: TrendingUpIcon,
+    href: '/performance',
+    roles: ['admin', 'employee', 'manager'],
+    children: [
+      { label: 'Performance', href: '/performance' },
+      { label: 'Learning', href: '/learning' },
+      { label: 'Career', href: '/career' },
+    ],
+  },
   {
     id: 'engage',
     label: 'Engage',

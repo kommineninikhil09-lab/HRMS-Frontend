@@ -3,12 +3,12 @@
 export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Notifications</h1>
         <p className="text-base text-gray-600">Stay updated with your notifications</p>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <div className="grid grid-cols-1 gap-4 max-w-2xl">
           <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-start gap-4">

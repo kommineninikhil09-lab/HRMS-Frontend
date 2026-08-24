@@ -49,12 +49,12 @@ export default function EngagePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Engage</h1>
         <p className="text-base text-gray-600">Stay connected with company announcements, polls, and articles</p>
       </div>
 
-      <div className="bg-white border-b border-gray-200 px-8">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-8">
         <div className="flex gap-8">
           <button
             onClick={() => setSelectedTab('post')}
@@ -86,7 +86,7 @@ export default function EngagePage() {
         </div>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {/* POST TAB */}
         {selectedTab === 'post' && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-2xl">

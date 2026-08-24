@@ -65,7 +65,7 @@ export default function InboxPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Inbox</h1>
         <p className="text-base text-gray-600">Stay updated with important messages and notifications</p>
       </div>

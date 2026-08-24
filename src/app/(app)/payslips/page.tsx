@@ -44,13 +44,13 @@ export default function PayslipsPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">My Finances</h1>
         <p className="text-base text-gray-600">View and download your payslips and salary information</p>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-8">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-8">
         <div className="flex gap-8">
           <button
             onClick={() => setSelectedTab('pay')}
@@ -75,7 +75,7 @@ export default function PayslipsPage() {
         </div>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {/* My Pay Tab */}
         {selectedTab === 'pay' && (
           <>

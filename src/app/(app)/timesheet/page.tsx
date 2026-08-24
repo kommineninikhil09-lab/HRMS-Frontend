@@ -39,7 +39,7 @@ export default function TimesheetPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.back()}
@@ -57,7 +57,7 @@ export default function TimesheetPage() {
         </div>
       </div>
 
-      <div className="p-8 space-y-6">
+      <div className="p-4 sm:p-8 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
             {(['This Week', 'Last Week', 'This Month'] as const).map((p) => (

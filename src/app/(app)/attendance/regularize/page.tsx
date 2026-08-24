@@ -18,7 +18,7 @@ export default function RegularizeAttendancePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.back()}
@@ -36,7 +36,7 @@ export default function RegularizeAttendancePage() {
         </div>
       </div>
 
-      <div className="p-8 max-w-xl">
+      <div className="p-4 sm:p-8 max-w-xl">
         {submitted ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm text-center">
             <div className="w-12 h-12 mx-auto rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-4 text-2xl">

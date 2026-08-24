@@ -34,11 +34,11 @@ export default function AppsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Apps</h1>
         <p className="text-base text-gray-600">Every module in your HRMS portal, in one place</p>
       </div>
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {apps.map((app) => {
             const Icon = app.icon;

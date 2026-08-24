@@ -72,12 +72,12 @@ export default function PerformancePage() {
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Performance</h1>
         <p className="text-base text-gray-600">Track your reviews, goals, and career development</p>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {/* Performance Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6 shadow-sm hover:shadow-md transition-shadow">

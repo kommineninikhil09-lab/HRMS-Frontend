@@ -27,12 +27,12 @@ export default function EmployeesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Organization</h1>
         <p className="text-base text-gray-600">Manage employees and organizational documents</p>
       </div>
 
-      <div className="bg-white border-b border-gray-200 px-8">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-8">
         <div className="flex gap-8">
           <button
             onClick={() => setSelectedTab('employees')}
@@ -53,7 +53,7 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {selectedTab === 'employees' && (
           <>
             <div className="mb-6 flex items-center gap-3">

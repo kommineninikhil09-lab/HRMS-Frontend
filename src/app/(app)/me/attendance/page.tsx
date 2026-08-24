@@ -53,7 +53,7 @@ export default function AttendancePage() {
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -74,7 +74,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Present Days</h3>

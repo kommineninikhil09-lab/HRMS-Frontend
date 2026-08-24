@@ -6,11 +6,11 @@ import { GraduationCapIcon } from '@/components/icons';
 export default function LearningPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Learning</h1>
         <p className="text-base text-gray-600">Courses, certifications, and skill-building resources</p>
       </div>
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <EmptyState
           icon={<GraduationCapIcon className="w-7 h-7" />}
           title="Learning catalog is on its way"
