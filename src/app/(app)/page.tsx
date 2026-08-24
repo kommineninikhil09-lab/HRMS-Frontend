@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ProfileDropdown } from '@/components/ProfileDropdown';
 
 const HomeIcon = () => (
   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
@@ -118,6 +120,21 @@ const SettingsIcon = () => (
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('organization');
+  const [currentTime, setCurrentTime] = useState('00:00');
+  const router = useRouter();
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-gray-50 font-['Lato']">
@@ -140,16 +157,11 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Notifications"><BellIcon /></button>
-            <button className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Help"><HelpIcon /></button>
-            <button className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Settings"><SettingsIcon /></button>
-            <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                NK
-              </div>
-              <div className="text-xs">
-                <div className="font-semibold text-gray-900">Admin</div>
-              </div>
+            <button onClick={() => router.push('/notifications')} className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Notifications"><BellIcon /></button>
+            <button onClick={() => router.push('/help')} className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Help"><HelpIcon /></button>
+            <button onClick={() => router.push('/settings')} className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Settings"><SettingsIcon /></button>
+            <div className="pl-4 border-l border-gray-200">
+              <ProfileDropdown />
             </div>
           </div>
         </header>
@@ -176,7 +188,7 @@ export default function Dashboard() {
                   <div className="text-center">
                     <div className="text-6xl font-bold text-blue-600 mb-2">5</div>
                     <p className="text-sm text-gray-600 mb-5">Tasks pending your action</p>
-                    <button className="w-full bg-blue-600 text-white text-sm font-semibold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all shadow-md hover:shadow-lg">
+                    <button onClick={() => router.push('/inbox')} className="w-full bg-blue-600 text-white text-sm font-semibold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all shadow-md hover:shadow-lg">
                       Take Action
                     </button>
                   </div>
@@ -189,7 +201,7 @@ export default function Dashboard() {
                     <span className="text-gray-400"><ClockIcon /></span>
                   </div>
                   <div className="text-center">
-                    <div className="text-6xl font-bold text-gray-900 font-mono mb-2">04:32</div>
+                    <div className="text-6xl font-bold text-gray-900 font-mono mb-2">{currentTime}</div>
                     <p className="text-sm text-gray-600 mb-5">Clocked in at 09:00 AM</p>
                     <button className="w-full border-2 border-yellow-400 text-yellow-600 text-sm font-semibold py-2.5 px-4 rounded-lg hover:bg-yellow-50 transition-all">
                       ⏸ Take Break
@@ -254,9 +266,9 @@ export default function Dashboard() {
                     />
                   </div>
                   <div className="flex gap-6 pt-4 border-t border-gray-200 text-xs font-medium text-gray-600">
-                    <button className="flex items-center gap-1.5 hover:text-blue-600 transition-colors"><DocumentIcon /> Post</button>
-                    <button className="flex items-center gap-1.5 hover:text-blue-600 transition-colors"><VoteIcon /> Poll</button>
-                    <button className="flex items-center gap-1.5 hover:text-blue-600 transition-colors"><StarIcon /> Praise</button>
+                    <button onClick={() => router.push('/engage?tab=posts')} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors"><DocumentIcon /> Post</button>
+                    <button onClick={() => router.push('/engage?tab=polls')} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors"><VoteIcon /> Poll</button>
+                    <button onClick={() => router.push('/engage?tab=praise')} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors"><StarIcon /> Praise</button>
                   </div>
                 </div>
 
