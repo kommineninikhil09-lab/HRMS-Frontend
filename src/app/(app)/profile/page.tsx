@@ -99,7 +99,7 @@ function EmptyPanel({
   description: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-[0_2px_8px_rgba(15,23,42,0.04)] py-20 flex flex-col items-center text-center px-6">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_8px_rgba(15,23,42,0.04)] py-20 flex flex-col items-center text-center px-6">
       <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
         {icon}
       </div>
@@ -110,7 +110,7 @@ function EmptyPanel({
 }
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('about');
   const [aboutTab, setAboutTab] = useState('summary');
 
@@ -127,8 +127,49 @@ export default function ProfilePage() {
     window.setTimeout(() => setJustSaved(false), 2500);
   };
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editName, setEditName] = useState(fullName);
+  const [editError, setEditError] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
+
+  const openEditModal = () => {
+    setEditName(fullName);
+    setEditError('');
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditError('');
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = editName.trim().replace(/\s+/g, ' ');
+    if (!trimmed || !/^[A-Za-z' -]+$/.test(trimmed) || trimmed.length > 60) {
+      setEditError('Please enter a valid name');
+      return;
+    }
+
+    setIsSavingName(true);
+    setEditError('');
+    try {
+      const parts = trimmed.split(' ');
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(' ');
+      await updateProfile({ firstName, lastName });
+      setIsEditModalOpen(false);
+      setNameSaved(true);
+      window.setTimeout(() => setNameSaved(false), 2500);
+    } catch {
+      setEditError('Please enter a valid name');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 font-['Lato']">
+    <div className="min-h-screen bg-slate-50 font-['Inter']">
       <div className="bg-white border-b border-slate-200">
         <div className="px-4 sm:px-8 pt-6 pb-6">
           {/* Identity row */}
@@ -150,10 +191,21 @@ export default function ProfilePage() {
                 </p>
               </div>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm shrink-0">
-              <EditIcon className="w-4 h-4" />
-              Edit Profile
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              {nameSaved ? (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+                  <CheckCircleIcon className="w-4 h-4" />
+                  Profile updated successfully
+                </span>
+              ) : null}
+              <button
+                onClick={openEditModal}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm shrink-0"
+              >
+                <EditIcon className="w-4 h-4" />
+                Edit Profile
+              </button>
+            </div>
           </div>
 
           {/* Contact row */}
@@ -243,14 +295,14 @@ export default function ProfilePage() {
                     </button>
 
                     <div className="mt-6 pt-6 border-t border-slate-100">
-                      <h3 className="text-sm font-semibold text-slate-900 mb-3">What I love about my job?</h3>
+                      <h3 className="text-base font-bold text-slate-900 mb-3">What I love about my job?</h3>
                       <button className="px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors">
                         Add your response
                       </button>
                     </div>
 
                     <div className="mt-6 pt-6 border-t border-slate-100">
-                      <h3 className="text-sm font-semibold text-slate-900 mb-3">My interests and hobbies</h3>
+                      <h3 className="text-base font-bold text-slate-900 mb-3">My interests and hobbies</h3>
                       <button className="px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors">
                         Add your response
                       </button>
@@ -424,6 +476,52 @@ export default function ProfilePage() {
           />
         )}
       </div>
+
+      {isEditModalOpen ? (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full">
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <h2 className="text-base font-bold text-slate-900">Edit Profile</h2>
+              <button onClick={closeEditModal} className="text-slate-400 hover:text-slate-600" aria-label="Close">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-5 pb-5">
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                Name
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Enter your name"
+                autoFocus
+                className="w-full px-3 py-2 text-sm font-medium text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+              />
+              {editError ? <p className="text-xs text-red-500 mt-1.5">{editError}</p> : null}
+            </div>
+
+            <div className="flex gap-3 px-5 pb-5">
+              <button
+                onClick={closeEditModal}
+                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveName}
+                disabled={isSavingName}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+              >
+                {isSavingName ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

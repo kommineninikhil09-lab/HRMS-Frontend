@@ -155,7 +155,7 @@ export default function InboxPage() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-['Lato']">
+    <div className="min-h-screen bg-slate-50 font-['Inter']">
       <div className="bg-white border-b border-slate-200 px-4 sm:px-8">
         <div className="flex gap-8 overflow-x-auto">
           {tabs.map((tab) => {

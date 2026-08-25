@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function ExpensesRedirect() {
-  redirect('/me/expenses');
+  redirect('/payslips?tab=expenses');
 }

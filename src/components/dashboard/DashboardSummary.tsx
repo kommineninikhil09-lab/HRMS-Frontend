@@ -13,8 +13,8 @@ export function DashboardSummary({ clockedInAt, workingSince }: DashboardSummary
     {
       title: 'Clocked In',
       icon: <ClockIcon className="w-4 h-4" />,
-      iconBg: 'bg-blue-50',
-      iconColor: 'text-blue-600',
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
       primaryValue: clockedInAt,
       secondaryValue: workingSince,
       secondaryValueColor: 'text-green-600 font-medium',
@@ -44,8 +44,8 @@ export function DashboardSummary({ clockedInAt, workingSince }: DashboardSummary
     {
       title: 'Next Payroll',
       icon: <WalletIcon className="w-4 h-4" />,
-      iconBg: 'bg-blue-50',
-      iconColor: 'text-blue-600',
+      iconBg: 'bg-indigo-50',
+      iconColor: 'text-indigo-600',
       primaryValue: '₹45,000',
       secondaryValue: 'Payday: 30 Aug 2026',
       actionLabel: 'View payroll',

@@ -33,11 +33,7 @@ export default function AppsPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Apps</h1>
-        <p className="text-base text-gray-600">Every module in your HRMS portal, in one place</p>
-      </div>
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
       <div className="p-4 sm:p-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {apps.map((app) => {
@@ -46,7 +42,7 @@ export default function AppsPage() {
               <button
                 key={app.label}
                 onClick={() => router.push(app.href)}
-                className="text-left bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all"
+                className="text-left bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all"
               >
                 <div
                   className={`w-11 h-11 rounded-xl bg-gradient-to-br ${app.color} flex items-center justify-center text-white mb-4`}

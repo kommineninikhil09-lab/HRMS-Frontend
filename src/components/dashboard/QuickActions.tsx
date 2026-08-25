@@ -37,9 +37,9 @@ export function QuickActions() {
               key={action.id}
               onClick={() => router.push(action.href)}
               title={action.label}
-              className="group flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="group flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
-              <span className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <span className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                 <Icon className="w-5 h-5" />
               </span>
               <span className="text-[11px] font-medium text-slate-600 text-center leading-tight">

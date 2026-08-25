@@ -18,7 +18,7 @@ export default function RegularizeAttendancePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
       <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-4">
           <button
@@ -31,19 +31,19 @@ export default function RegularizeAttendancePage() {
             </svg>
           </button>
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Regularize Attendance</h1>
-            <p className="text-base text-gray-600">Correct a missed check-in or check-out</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-1">Regularize Attendance</h1>
+            <p className="text-sm text-slate-500">Correct a missed check-in or check-out</p>
           </div>
         </div>
       </div>
 
       <div className="p-4 sm:p-8 max-w-xl">
         {submitted ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm text-center">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm text-center">
             <div className="w-12 h-12 mx-auto rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-4 text-2xl">
               ✓
             </div>
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Request submitted</h2>
+            <h2 className="text-base font-bold text-slate-900 mb-1">Request submitted</h2>
             <p className="text-sm text-gray-600 mb-6">Your regularization request has been sent for approval.</p>
             <button
               onClick={() => router.push('/me/attendance')}
@@ -53,7 +53,7 @@ export default function RegularizeAttendancePage() {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
               <input

@@ -10,16 +10,12 @@ export default function SettingsPage() {
   const [emailNotifications, setEmailNotifications] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Settings</h1>
-        <p className="text-base text-gray-600">Manage your account preferences</p>
-      </div>
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
 
       <div className="p-4 sm:p-8 max-w-3xl space-y-6">
         {/* Account Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Account</h2>
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <h2 className="text-base font-bold text-slate-900 mb-4">Account</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -32,8 +28,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Preferences Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Preferences</h2>
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <h2 className="text-base font-bold text-slate-900 mb-4">Preferences</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -54,8 +50,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Notifications Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Notifications</h2>
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <h2 className="text-base font-bold text-slate-900 mb-4">Notifications</h2>
           <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -85,8 +81,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Privacy Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Privacy & Security</h2>
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <h2 className="text-base font-bold text-slate-900 mb-4">Privacy & Security</h2>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">Your data is securely stored and encrypted. We never share your personal information with third parties without your consent.</p>
             <a href="#" className="text-blue-600 hover:text-blue-700 font-medium text-sm">View Privacy Policy</a>

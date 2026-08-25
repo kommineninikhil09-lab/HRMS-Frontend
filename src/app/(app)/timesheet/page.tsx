@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 const week = [
   { day: 'Mon', date: 'Aug 18', general: 4.5, project: 2.25, meetings: 1, training: 0 },
@@ -27,7 +26,6 @@ function fmt(hours: number) {
 }
 
 export default function TimesheetPage() {
-  const router = useRouter();
   const [period, setPeriod] = useState<'This Week' | 'Last Week' | 'This Month'>('This Week');
 
   const totals = categories.reduce<Record<string, number>>((acc, c) => {
@@ -38,25 +36,7 @@ export default function TimesheetPage() {
   const target = 40;
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Go back"
-          >
-            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Timesheet</h1>
-            <p className="text-base text-gray-600">Track logged hours across projects and categories</p>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
       <div className="p-4 sm:p-8 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
@@ -78,9 +58,9 @@ export default function TimesheetPage() {
         </div>
 
         {/* Summary */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-baseline justify-between mb-2">
-            <span className="text-2xl font-bold text-gray-900">{fmt(weekTotal)}</span>
+            <span className="text-sm font-semibold text-slate-900">{fmt(weekTotal)}</span>
             <span className="text-sm text-gray-500">of {target}h target</span>
           </div>
           <div className="w-full h-2.5 rounded-full bg-gray-100 overflow-hidden mb-6">
@@ -103,7 +83,7 @@ export default function TimesheetPage() {
         </div>
 
         {/* Daily breakdown */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">

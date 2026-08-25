@@ -25,16 +25,12 @@ export default function HelpPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Help & Support</h1>
-        <p className="text-base text-gray-600">Find answers to common questions</p>
-      </div>
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
 
       <div className="p-4 sm:p-8 max-w-3xl">
         <div className="space-y-4">
           {faqs.map((faq, idx) => (
-            <details key={idx} className="bg-white rounded-lg border border-gray-200 p-6 group">
+            <details key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 group">
               <summary className="flex items-center justify-between cursor-pointer font-semibold text-gray-900 hover:text-blue-600 transition-colors">
                 <span>{faq.question}</span>
                 <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">

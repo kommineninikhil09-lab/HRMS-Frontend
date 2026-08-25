@@ -26,17 +26,13 @@ export default function EmployeesPage() {
   const [selectedTab, setSelectedTab] = useState('employees');
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Organization</h1>
-        <p className="text-base text-gray-600">Manage employees and organizational documents</p>
-      </div>
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
 
       <div className="bg-white border-b border-gray-200 px-4 sm:px-8">
-        <div className="flex gap-8">
+        <div className="flex gap-5">
           <button
             onClick={() => setSelectedTab('employees')}
-            className={`px-1 py-4 border-b-2 font-semibold transition-colors ${
+            className={`px-1 py-3 border-b-2 font-semibold transition-colors ${
               selectedTab === 'employees' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -44,7 +40,7 @@ export default function EmployeesPage() {
           </button>
           <button
             onClick={() => setSelectedTab('documents')}
-            className={`px-1 py-4 border-b-2 font-semibold transition-colors ${
+            className={`px-1 py-3 border-b-2 font-semibold transition-colors ${
               selectedTab === 'documents' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -65,7 +61,7 @@ export default function EmployeesPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {employees.map(emp => (
-                <div key={emp.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+                <div key={emp.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-shadow">
                   <h3 className="font-bold text-gray-900 text-lg mb-1">{emp.name}</h3>
                   <p className="text-purple-600 text-sm font-semibold mb-3">{emp.position}</p>
                   <div className="space-y-2 text-sm">
@@ -81,7 +77,7 @@ export default function EmployeesPage() {
 
         {selectedTab === 'documents' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
               <h3 className="font-bold text-gray-900 mb-4 text-lg">Organization Documents</h3>
               <div className="space-y-3">
                 <a href="#" className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-purple-600 transition-colors">

@@ -1,186 +1,255 @@
 'use client';
 
 import { useState } from 'react';
-import { usePermission } from '@/lib/auth/usePermission';
-
-const PhoneIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
-  </svg>
-);
-
-const MailIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-  </svg>
-);
+import { ChevronLeftIcon, ChevronDownIcon } from '@/components/icons';
 
 const teamMembers = [
-  {
-    id: 1,
-    name: 'Marcus Kinsley',
-    role: 'VP of Engineering',
-    department: 'Engineering',
-    email: 'm.kinsley@company.com',
-    phone: '+44 7911 123456',
-    status: 'active',
-  },
-  {
-    id: 2,
-    name: 'Sarah Jenkins',
-    role: 'Senior Product Designer',
-    department: 'Design & UX',
-    email: 'sarah.jenkins@company.com',
-    phone: '+44 7911 654321',
-    status: 'active',
-  },
-  {
-    id: 3,
-    name: 'David Chen',
-    role: 'Financial Analyst',
-    department: 'Finance',
-    email: 'd.chen@company.com',
-    phone: '+44 7911 789123',
-    status: 'active',
-  },
-  {
-    id: 4,
-    name: 'James Wilson',
-    role: 'Senior Engineer',
-    department: 'Engineering',
-    email: 'j.wilson@company.com',
-    phone: '+44 7911 456789',
-    status: 'active',
-  },
+  { id: 1, name: 'Anurag Kumar Tiwari', initials: 'AT', role: 'Senior I', location: 'Hyderabad', department: 'Technology', avatarColor: 'from-amber-500 to-orange-600' },
+  { id: 2, name: 'Kiran Vasvani', initials: 'KV', role: 'Assistant Manager', location: 'Hyderabad', department: 'Audit & Assurance > InfoSec Audit', avatarColor: 'from-slate-700 to-slate-900' },
+  { id: 3, name: 'Nikhil Kommineni', initials: 'NK', role: 'Trainee', location: 'Hyderabad', department: 'Technology', avatarColor: 'from-emerald-500 to-teal-600' },
+  { id: 4, name: 'Marcus Kinsley', initials: 'MK', role: 'VP of Engineering', location: 'Hyderabad', department: 'Engineering', avatarColor: 'from-blue-600 to-indigo-600' },
+  { id: 5, name: 'Sarah Jenkins', initials: 'SJ', role: 'Senior Product Designer', location: 'Hyderabad', department: 'Design & UX', avatarColor: 'from-rose-600 to-pink-600' },
+  { id: 6, name: 'David Chen', initials: 'DC', role: 'Financial Analyst', location: 'Hyderabad', department: 'Finance', avatarColor: 'from-purple-600 to-indigo-600' },
 ];
 
-const avatarColors = ['from-blue-600 to-indigo-600', 'from-emerald-600 to-teal-600', 'from-purple-600 to-indigo-600', 'from-rose-600 to-pink-600'];
+const notInYetToday = [{ name: 'Tejas Vora', initials: 'TV', avatarColor: 'from-amber-500 to-orange-600' }];
+
+type DayStatus = 'weekoff' | 'holiday' | 'paid' | 'unpaid' | 'noattendance' | null;
+
+function buildMonthDays(year: number, month: number, specials: Record<number, DayStatus>) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days: { day: number; date: Date; status: DayStatus }[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const dow = date.getDay();
+    const status: DayStatus = specials[d] ?? (dow === 0 || dow === 6 ? 'weekoff' : null);
+    days.push({ day: d, date, status });
+  }
+  return days;
+}
+
+const dayColor: Record<Exclude<DayStatus, null>, string> = {
+  weekoff: 'bg-amber-400 text-white',
+  holiday: 'bg-emerald-500 text-white',
+  paid: 'bg-sky-100 text-sky-700',
+  unpaid: 'bg-stone-200 text-stone-600',
+  noattendance: 'bg-red-400 text-white',
+};
+
+const legend: { label: string; color: string; shape?: 'dot' }[] = [
+  { label: 'Work from home', color: 'bg-violet-500', shape: 'dot' },
+  { label: 'On duty', color: 'bg-pink-500', shape: 'dot' },
+  { label: 'Paid Leave', color: 'bg-sky-400', shape: 'dot' },
+  { label: 'Unpaid Leave', color: 'bg-stone-400', shape: 'dot' },
+  { label: 'Leave due to No Attendance', color: 'bg-red-400', shape: 'dot' },
+  { label: 'Weekly off', color: 'bg-amber-400' },
+  { label: 'Holiday', color: 'bg-emerald-500' },
+  { label: 'Someone on Leave', color: 'bg-blue-500', shape: 'dot' },
+  { label: 'Multiple Leave on a day', color: 'bg-rose-500', shape: 'dot' },
+  { label: 'Someone on WFH/OD', color: 'bg-slate-400', shape: 'dot' },
+];
 
 export default function TeamPage() {
-  usePermission(['manager', 'admin']);
-  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [month, setMonth] = useState(new Date(2026, 7, 1)); // Aug 2026
+
+  const monthDays = buildMonthDays(month.getFullYear(), month.getMonth(), {
+    7: 'noattendance',
+    8: 'unpaid',
+    9: 'unpaid',
+    10: 'paid',
+    11: 'paid',
+    12: 'paid',
+    13: 'paid',
+    14: 'paid',
+    15: 'unpaid',
+    28: 'holiday',
+  });
+
+  const shiftMonth = (delta: number) => {
+    setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
+  };
+
+  const stats = [
+    { label: 'Employees On Time today', value: 3, color: 'border-teal-400' },
+    { label: 'Late Arrivals today', value: 2, color: 'border-violet-400' },
+    { label: 'Work from Home / On Duty today', value: 0, color: 'border-emerald-400' },
+    { label: 'Remote Clock-ins today', value: 0, color: 'border-amber-400' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">My Team</h1>
-            <p className="text-base text-gray-600">Connect with your team members and collaborate</p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setView('grid')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                view === 'grid'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Grid
-            </button>
-            <button
-              onClick={() => setView('list')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                view === 'list'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              List
-            </button>
-          </div>
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
+      {/* Sub-nav */}
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-8">
+        <div className="flex gap-5">
+          <span className="relative py-4 text-xs font-semibold tracking-wide text-blue-600 uppercase">
+            Summary
+            <span className="absolute -bottom-px left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-blue-600" />
+          </span>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 sm:p-8">
-        {view === 'grid' ? (
-          // Grid View
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {teamMembers.map((member, idx) => (
-              <div key={member.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all group relative">
-                {/* Heritage Accent */}
-                <div className={`absolute top-0 left-0 h-1 w-full bg-gradient-to-r ${avatarColors[idx % avatarColors.length]} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+      <div className="p-4 sm:p-6 space-y-5">
+        {/* Who is on leave / Not in yet */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3">Who is on leave today</h2>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+              No employee is on leave today.
+            </div>
+          </div>
 
-                {/* Header */}
-                <div className="p-6 bg-gradient-to-br from-gray-50 to-white">
-                  <div className={`w-16 h-16 bg-gradient-to-br ${avatarColors[idx % avatarColors.length]} rounded-lg flex items-center justify-center text-white font-bold text-lg mb-4 group-hover:scale-110 transition-transform`}>
-                    {member.name.split(' ').map(n => n[0]).join('')}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3">Not in yet today</h2>
+            {notInYetToday.length === 0 ? (
+              <p className="text-sm text-gray-500">Everyone has checked in.</p>
+            ) : (
+              <div className="flex gap-4">
+                {notInYetToday.map((p) => (
+                  <div key={p.name} className="flex flex-col items-center text-center w-16">
+                    <div
+                      className={`w-10 h-10 rounded-full bg-gradient-to-br ${p.avatarColor} flex items-center justify-center text-white text-xs font-bold`}
+                    >
+                      {p.initials}
+                    </div>
+                    <span className="text-xs text-gray-600 mt-1.5 truncate w-full">{p.name.split(' ')[0]}...</span>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900">{member.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{member.role}</p>
-                  <p className="text-xs text-gray-500 mt-2">{member.department}</p>
-                </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-                {/* Contact */}
-                <div className="px-6 py-4 border-t border-gray-200 space-y-3">
-                  <a href={`mailto:${member.email}`} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 transition-colors">
-                    <MailIcon /> {member.email}
-                  </a>
-                  <a href={`tel:${member.phone}`} className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 transition-colors">
-                    <PhoneIcon /> {member.phone}
-                  </a>
-                </div>
+        {/* Stats row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {stats.map((s) => (
+            <div key={s.label} className={`bg-white rounded-2xl border border-gray-200 border-l-4 ${s.color} p-4 shadow-sm`}>
+              <p className="text-sm text-slate-700 mb-2">{s.label}</p>
+              <div className="flex items-end justify-between">
+                <span className="text-2xl font-bold text-slate-900">{s.value}</span>
+                <button className="text-xs font-medium text-blue-600 hover:text-blue-700">View Employees</button>
+              </div>
+            </div>
+          ))}
+        </div>
 
-                {/* Action */}
-                <div className="px-6 py-4 border-t border-gray-200">
-                  <button className="w-full px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all text-sm">
-                    Send Message
-                  </button>
+        {/* Team calendar */}
+        <div>
+          <h2 className="text-base font-bold text-slate-900 mb-3">Team calendar</h2>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={() => shiftMonth(-1)}
+                className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700"
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-semibold text-slate-900 w-20 text-center">
+                {month.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              </span>
+              <button
+                onClick={() => shiftMonth(1)}
+                className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700"
+              >
+                <ChevronDownIcon className="w-4 h-4 -rotate-90" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="border-collapse">
+                <thead>
+                  <tr>
+                    <th className="sticky left-0 bg-white text-left text-xs font-semibold text-gray-500 pr-4 pb-2 w-40">Team member</th>
+                    {monthDays.map((d) => (
+                      <th key={d.day} className="text-[10px] font-semibold text-gray-400 pb-2 px-1 w-8">
+                        {d.date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamMembers.slice(0, 3).map((member) => (
+                    <tr key={member.id}>
+                      <td className="sticky left-0 bg-white pr-4 py-1.5">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-7 h-7 rounded-full bg-gradient-to-br ${member.avatarColor} flex items-center justify-center text-white text-[10px] font-bold shrink-0`}
+                          >
+                            {member.initials}
+                          </div>
+                          <span className="text-sm text-slate-700 whitespace-nowrap">{member.name}</span>
+                        </div>
+                      </td>
+                      {monthDays.map((d) => (
+                        <td key={d.day} className="px-1 py-1.5 text-center">
+                          {d.status ? (
+                            <span
+                              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-semibold ${dayColor[d.status]}`}
+                            >
+                              {d.day}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-gray-400">{d.day}</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 pt-4 border-t border-gray-100">
+              {legend.map((l) => (
+                <span key={l.label} className="flex items-center gap-1.5 text-xs text-gray-500">
+                  {l.shape === 'dot' ? (
+                    <span className={`w-2 h-2 rounded-full ${l.color}`} />
+                  ) : (
+                    <span className={`w-3 h-3 rounded ${l.color}`} />
+                  )}
+                  {l.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Peers */}
+        <div>
+          <h2 className="text-base font-bold text-slate-900 mb-3">Peers ({teamMembers.length})</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {teamMembers.map((member) => (
+              <div key={member.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-3">
+                  <div className="relative shrink-0">
+                    <div
+                      className={`w-12 h-12 rounded-full bg-gradient-to-br ${member.avatarColor} flex items-center justify-center text-white text-sm font-bold`}
+                    >
+                      {member.initials}
+                    </div>
+                    <span className="absolute -bottom-1 -right-1 text-[9px] font-bold bg-emerald-100 text-emerald-700 rounded px-1 py-0.5 border border-white">
+                      IN
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-900 truncate">{member.name}</h3>
+                      <button className="text-gray-400 hover:text-gray-600 shrink-0" title="More">
+                        &#8942;
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">{member.role}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Location: <span className="text-gray-700">{member.location}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Department: <span className="text-gray-700">{member.department}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        ) : (
-          // List View
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-6 py-4 font-semibold text-gray-900">Name</th>
-                  <th className="text-left px-6 py-4 font-semibold text-gray-900">Role</th>
-                  <th className="text-left px-6 py-4 font-semibold text-gray-900">Department</th>
-                  <th className="text-left px-6 py-4 font-semibold text-gray-900">Email</th>
-                  <th className="text-left px-6 py-4 font-semibold text-gray-900">Phone</th>
-                  <th className="text-right px-6 py-4 font-semibold text-gray-900">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teamMembers.map((member, idx) => (
-                  <tr key={member.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 bg-gradient-to-br ${avatarColors[idx % avatarColors.length]} rounded-lg flex items-center justify-center text-white font-bold text-xs`}>
-                          {member.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <span className="font-semibold text-gray-900">{member.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{member.role}</td>
-                    <td className="px-6 py-4 text-gray-600">{member.department}</td>
-                    <td className="px-6 py-4">
-                      <a href={`mailto:${member.email}`} className="text-purple-600 hover:text-purple-700 text-sm">
-                        {member.email}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4">
-                      <a href={`tel:${member.phone}`} className="text-purple-600 hover:text-purple-700 text-sm">
-                        {member.phone}
-                      </a>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all text-sm">
-                        Message
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

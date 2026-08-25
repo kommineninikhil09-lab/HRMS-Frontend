@@ -16,7 +16,7 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   return (
-    <div className="bg-slate-50 font-['Lato'] p-4 sm:p-8 space-y-6">
+    <div className="bg-slate-50 font-['Inter'] p-4 sm:p-8 space-y-6">
       <DashboardHeader firstName={user?.firstName || 'there'} />
 
       <DashboardSummary clockedInAt="09:02 AM" workingSince="Working since 1h 15m" />
