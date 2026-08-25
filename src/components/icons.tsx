@@ -202,6 +202,10 @@ export const PackageIcon = base(
   <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM12 4.15l6 3.43-6 3.43-6-3.43 6-3.43zM5 9.7l6 3.43v6.87l-6-3.43V9.7zm8 10.3v-6.87l6-3.43v6.87l-6 3.43z" />,
 );
 
+export const CoffeeIcon = base(
+  <path d="M18 8h-1V4H3v10a4 4 0 004 4h6a4 4 0 004-4v-2h1a3 3 0 000-6zm0 4h-1V6h1a2 2 0 010 4zM4 20h14v2H4z" />,
+);
+
 export const ImageIcon = base(
   <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />,
 );

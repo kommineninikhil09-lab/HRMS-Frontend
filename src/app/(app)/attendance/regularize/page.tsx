@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function RegularizeAttendancePage() {
   const router = useRouter();
-  const [date, setDate] = useState('');
+  const searchParams = useSearchParams();
+  const [date, setDate] = useState(() => searchParams.get('date') || '');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [reason, setReason] = useState('');

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function ApplyLeaveRedirect() {
-  redirect('/me/leaves?action=apply');
+  redirect('/me/attendance?tab=leave&action=apply');
 }
