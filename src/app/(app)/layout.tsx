@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
+import { ProfileDropdown } from '@/components/ProfileDropdown';
 import {
   HomeIcon,
   InboxIcon,
@@ -24,6 +25,8 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   LogoutIcon,
+  SearchIcon,
+  BellIcon,
 } from '@/components/icons';
 
 type RequiredRole = 'admin' | 'employee' | 'manager';
@@ -299,7 +302,53 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {sidebarContent}
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-y-auto pt-14 md:pt-0 min-w-0">{children}</div>
+      <div className="flex-1 flex flex-col overflow-hidden pt-14 md:pt-0 min-w-0">
+        {/* Shared top bar, visible on every page */}
+        <header className="border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between bg-white shadow-sm gap-4 shrink-0">
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search for people, documents, policies and more..."
+                className="w-full pl-4 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-blue-500/10 transition-all"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hidden sm:flex items-center gap-1">
+                <SearchIcon className="w-4 h-4" />
+                <kbd className="text-[10px] font-semibold border border-slate-200 rounded px-1 py-0.5">⌘K</kbd>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => router.push('/notifications')}
+              className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Notifications"
+            >
+              <BellIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => router.push('/help')}
+              className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Help"
+            >
+              <HelpIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => router.push('/settings')}
+              className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Settings"
+            >
+              <SettingsIcon className="w-5 h-5" />
+            </button>
+            <div className="pl-2 sm:pl-4 border-l border-slate-200">
+              <ProfileDropdown />
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">{children}</div>
+      </div>
     </div>
   );
 }
