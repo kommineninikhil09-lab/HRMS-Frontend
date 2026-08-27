@@ -55,7 +55,19 @@ const navItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: CalendarCheckIcon, href: '/attendance', roles: ['admin', 'employee', 'manager'] },
   { id: 'leave', label: 'Leave Management', icon: CalendarIcon, href: '/leave', roles: ['admin', 'employee', 'manager'] },
   { id: 'timesheet', label: 'Timesheet', icon: TimerIcon, href: '/timesheet', roles: ['admin', 'employee', 'manager'] },
-  { id: 'finances', label: 'My Finances', icon: WalletIcon, href: '/payslips', roles: ['admin', 'employee', 'manager'] },
+  {
+    id: 'finances',
+    label: 'My Finances',
+    icon: WalletIcon,
+    href: '/payslips',
+    roles: ['admin', 'employee', 'manager'],
+    children: [
+      { label: 'Summary', href: '/payslips?tab=summary' },
+      { label: 'My Pay', href: '/payslips?tab=pay' },
+      { label: 'Manage Tax', href: '/payslips?tab=tax' },
+      { label: 'Expenses & Travel', href: '/payslips?tab=expenses' },
+    ],
+  },
   {
     id: 'perf',
     label: 'Performance',
@@ -70,18 +82,7 @@ const navItems: NavItem[] = [
   },
   { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['admin', 'employee', 'manager'] },
   { id: 'org', label: 'Organization', icon: TeamIcon, href: '/employees', roles: ['admin'] },
-  {
-    id: 'engage',
-    label: 'Engage',
-    icon: MessageCircleIcon,
-    href: '/engage',
-    roles: ['admin', 'employee', 'manager'],
-    children: [
-      { label: 'Posts', href: '/engage?tab=post' },
-      { label: 'Polls', href: '/engage?tab=poll' },
-      { label: 'Praise', href: '/engage?tab=praise' },
-    ],
-  },
+  { id: 'engage', label: 'Engage', icon: MessageCircleIcon, href: '/engage', roles: ['admin', 'employee', 'manager'] },
   { id: 'apps', label: 'Apps', icon: GridIcon, href: '/apps', roles: ['admin', 'employee', 'manager'] },
 ];
 
@@ -180,12 +181,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div key={item.id} className="group/nav relative">
         <a
           href={item.href}
-          onClick={(e) => {
-            if (hasChildren && !collapsed) {
-              e.preventDefault();
-              setExpandedId(expanded ? null : item.id);
-            }
-          }}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors relative ${
             collapsed ? 'md:justify-center md:px-0' : ''
           } ${active ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
@@ -209,11 +204,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </span>
           ) : null}
           {hasChildren ? (
-            <ChevronDownIcon
-              className={`w-4 h-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''} ${
-                collapsed ? 'md:hidden' : ''
-              }`}
-            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpandedId(expanded ? null : item.id);
+              }}
+              aria-label={expanded ? `Collapse ${item.label}` : `Expand ${item.label}`}
+              aria-expanded={expanded}
+              className={`-my-1 -mr-1 p-1 rounded-md hover:bg-white/10 transition-colors ${collapsed ? 'md:hidden' : ''}`}
+            >
+              <ChevronDownIcon
+                className={`w-4 h-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+              />
+            </button>
           ) : null}
         </a>
 

@@ -85,9 +85,75 @@ const aadhaarFields = [
   { label: 'Gender', value: 'Male' },
 ];
 
+const financialYears = [
+  { id: 'FY2026', label: 'Apr 2026 – Mar 2027' },
+  { id: 'FY2025', label: 'Apr 2025 – Mar 2026' },
+];
+
+type TaxData = {
+  regime: string;
+  grossEarnings: number;
+  exemptDeductions: number;
+  netTaxableIncome: number;
+  taxOnIncome: number;
+  rebate: number;
+  cess: number;
+  totalTaxPayable: number;
+  taxPaidTillNow: number;
+};
+
+const taxDataByFy: Record<string, TaxData> = {
+  FY2026: {
+    regime: 'New Tax Regime',
+    grossEarnings: 197419,
+    exemptDeductions: 75000,
+    netTaxableIncome: 122419,
+    taxOnIncome: 0,
+    rebate: 0,
+    cess: 0,
+    totalTaxPayable: 0,
+    taxPaidTillNow: 0,
+  },
+  FY2025: {
+    regime: 'New Tax Regime',
+    grossEarnings: 840000,
+    exemptDeductions: 75000,
+    netTaxableIncome: 765000,
+    taxOnIncome: 26500,
+    rebate: 0,
+    cess: 1060,
+    totalTaxPayable: 27560,
+    taxPaidTillNow: 27560,
+  },
+};
+
+const taxWindows = [
+  { title: 'Investment Declaration', status: 'Open', closes: 'Till Aug 31, 2026', note: 'Monthly window open till 25th Dec 2026' },
+  { title: 'Proof Submission', status: 'Open', closes: 'Till Jan 22, 2027', note: 'Upload proofs for declared investments' },
+];
+
+const declarationRows = [
+  { section: '80C – Deductions (max ₹1.5L)', count: 0, declared: 0, proofs: 0, accepted: 0 },
+  { section: 'Other Deductions', count: 1, declared: 0, proofs: 0, accepted: 0 },
+  { section: 'Tax Saving Allowances', count: 0, declared: 0, proofs: 0, accepted: 0 },
+  { section: 'House Property', count: 0, declared: 0, proofs: 0, accepted: 0 },
+];
+
+const previousIncomeRows = [
+  { month: 'April 2026', gross: 0, tax: 0 },
+  { month: 'May 2026', gross: 0, tax: 0 },
+];
+
+const taxForms = [
+  { name: 'Form 16', formerly: 'Formerly Form 16', desc: 'Summary of your salary, deductions and tax paid — needed to file your tax return.' },
+  { name: 'Form 12BB', formerly: 'Formerly Form 12BB', desc: 'Details of your proposed investments and expenses that are tax deductible.' },
+];
+
+const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
 const DownloadIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
   </svg>
 );
 
@@ -172,6 +238,37 @@ export default function PayslipsPage() {
   const [expensesSubTab, setExpensesSubTab] = useState('summary');
   const [selectedPayslip, setSelectedPayslip] = useState<number | null>(payslips[0].id);
   const [salaryExpanded, setSalaryExpanded] = useState(false);
+  const [taxSubTab, setTaxSubTab] = useState('overview');
+  const [taxFy, setTaxFy] = useState('FY2026');
+
+  const fyLabel = financialYears.find((f) => f.id === taxFy)?.label ?? '';
+  const td = taxDataByFy[taxFy];
+  const balanceTax = Math.max(td.totalTaxPayable - td.taxPaidTillNow, 0);
+
+  const downloadTaxDoc = (title: string) => {
+    const lines = [
+      title,
+      `Financial Year: ${fyLabel}`,
+      `Tax Regime: ${td.regime}`,
+      '',
+      `Gross Earnings:              ${inr(td.grossEarnings)}`,
+      `Exemptions & Deductions:     ${inr(td.exemptDeductions)}`,
+      `Net Taxable Income:          ${inr(td.netTaxableIncome)}`,
+      `Tax on Income:               ${inr(td.taxOnIncome)}`,
+      `Rebate:                      ${inr(td.rebate)}`,
+      `Health & Education Cess:     ${inr(td.cess)}`,
+      `Total Tax Payable:           ${inr(td.totalTaxPayable)}`,
+      `Tax Paid Till Now:           ${inr(td.taxPaidTillNow)}`,
+      `Balance Tax Payable:         ${inr(balanceTax)}`,
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/\s+/g, '-')}-${taxFy}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -421,7 +518,7 @@ export default function PayslipsPage() {
                         }`}
                       >
                         <div className="text-sm font-semibold text-slate-900">{payslip.month}</div>
-                        <div className="text-xs text-gray-600 mt-1">£{payslip.netPay.toLocaleString()}</div>
+                        <div className="text-xs text-gray-600 mt-1">₹{payslip.netPay.toLocaleString()}</div>
                         <div className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">
                           <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
                           {payslip.status}
@@ -454,15 +551,15 @@ export default function PayslipsPage() {
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-gray-600">Base Salary</span>
-                              <span className="font-medium text-gray-900">£{(currentPayslip.salary * 0.85).toLocaleString('en-GB', {maximumFractionDigits: 0})}</span>
+                              <span className="font-medium text-gray-900">₹{(currentPayslip.salary * 0.85).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-600">Bonus</span>
-                              <span className="font-medium text-gray-900">£{(currentPayslip.salary * 0.15).toLocaleString('en-GB', {maximumFractionDigits: 0})}</span>
+                              <span className="font-medium text-gray-900">₹{(currentPayslip.salary * 0.15).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
                             </div>
                             <div className="pt-2 border-t border-gray-200 flex justify-between">
                               <span className="font-semibold text-gray-900">Gross</span>
-                              <span className="font-semibold text-emerald-600">£{currentPayslip.salary.toLocaleString()}</span>
+                              <span className="font-semibold text-emerald-600">₹{currentPayslip.salary.toLocaleString()}</span>
                             </div>
                           </div>
                         </div>
@@ -471,20 +568,20 @@ export default function PayslipsPage() {
                           <h3 className="text-base font-bold text-slate-900 mb-3">Deductions</h3>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Income Tax</span>
-                              <span className="font-medium text-gray-900">£{(currentPayslip.deductions * 0.45).toLocaleString('en-GB', {maximumFractionDigits: 0})}</span>
+                              <span className="text-gray-600">Income Tax (TDS)</span>
+                              <span className="font-medium text-gray-900">₹{(currentPayslip.deductions * 0.45).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">National Insurance</span>
-                              <span className="font-medium text-gray-900">£{(currentPayslip.deductions * 0.3).toLocaleString('en-GB', {maximumFractionDigits: 0})}</span>
+                              <span className="text-gray-600">Provident Fund</span>
+                              <span className="font-medium text-gray-900">₹{(currentPayslip.deductions * 0.3).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Pension</span>
-                              <span className="font-medium text-gray-900">£{(currentPayslip.deductions * 0.25).toLocaleString('en-GB', {maximumFractionDigits: 0})}</span>
+                              <span className="text-gray-600">Professional Tax</span>
+                              <span className="font-medium text-gray-900">₹{(currentPayslip.deductions * 0.25).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
                             </div>
                             <div className="pt-2 border-t border-gray-200 flex justify-between">
                               <span className="font-semibold text-gray-900">Total Deductions</span>
-                              <span className="font-semibold text-rose-600">-£{currentPayslip.deductions.toLocaleString()}</span>
+                              <span className="font-semibold text-rose-600">-₹{currentPayslip.deductions.toLocaleString()}</span>
                             </div>
                           </div>
                         </div>
@@ -494,7 +591,7 @@ export default function PayslipsPage() {
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="text-xs text-gray-600">Net Pay</p>
-                            <p className="text-xl font-bold text-purple-600 mt-0.5">£{currentPayslip.netPay.toLocaleString()}</p>
+                            <p className="text-xl font-bold text-purple-600 mt-0.5">₹{currentPayslip.netPay.toLocaleString()}</p>
                           </div>
                           <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
                             <span className="text-white font-bold text-sm">✓</span>
@@ -511,52 +608,209 @@ export default function PayslipsPage() {
 
         {/* Manage Tax Tab */}
         {selectedTab === 'tax' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <h2 className="text-base font-bold text-slate-900 mb-4">Manage Tax Information</h2>
-
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-900 mb-3">Tax Year 2025-2026</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-blue-600">Personal Allowance</p>
-                    <p className="text-lg font-bold text-blue-900">£12,570</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-600">Taxable Income</p>
-                    <p className="text-lg font-bold text-blue-900">£32,430</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-600">Tax Paid</p>
-                    <p className="text-lg font-bold text-blue-900">£6,486</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-600">Effective Rate</p>
-                    <p className="text-lg font-bold text-blue-900">20%</p>
-                  </div>
-                </div>
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex gap-6 border-b border-gray-200 -mb-px">
+                {(
+                  [
+                    ['overview', 'Overview'],
+                    ['declarations', 'Declarations'],
+                    ['previous', 'Previous Income'],
+                    ['forms', 'Forms'],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setTaxSubTab(id)}
+                    className={`px-1 pb-3 border-b-2 font-semibold text-sm transition-colors ${
+                      taxSubTab === id
+                        ? 'border-purple-600 text-purple-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 className="text-base font-bold text-slate-900 mb-3">Tax Documents</h3>
-                <div className="space-y-2">
-                  <a href="#" className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-gray-200 hover:border-purple-600 transition-colors">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">P60 - Tax Year 2025-2026</p>
-                      <p className="text-xs text-gray-500">Issued: Dec 31, 2025</p>
-                    </div>
-                    <DownloadIcon />
-                  </a>
-                  <a href="#" className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-gray-200 hover:border-purple-600 transition-colors">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">P45 - Previous Employer</p>
-                      <p className="text-xs text-gray-500">Issued: Jun 15, 2025</p>
-                    </div>
-                    <DownloadIcon />
-                  </a>
-                </div>
-              </div>
+              <select
+                value={taxFy}
+                onChange={(e) => setTaxFy(e.target.value)}
+                className="text-xs font-semibold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-purple-400"
+              >
+                {financialYears.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    FY {f.label}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {taxSubTab === 'overview' && (
+              <div className="space-y-5 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {taxWindows.map((w) => (
+                    <div key={w.title} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-bold text-slate-900">{w.title}</h3>
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          {w.status}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-900">{w.closes}</p>
+                      <p className="text-xs text-gray-500 mt-1">{w.note}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900">Income Tax Computation</h2>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {td.regime} · FY {fyLabel}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => downloadTaxDoc('Income Tax Statement')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <DownloadIcon /> Download statement
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 pb-4 mb-4 border-b border-gray-100">
+                    <div>
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Net Taxable Income</div>
+                      <div className="text-lg font-bold text-slate-900">{inr(td.netTaxableIncome)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Total Tax Payable</div>
+                      <div className="text-lg font-bold text-slate-900">{inr(td.totalTaxPayable)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Tax Paid Till Now</div>
+                      <div className="text-lg font-bold text-emerald-600">{inr(td.taxPaidTillNow)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Balance Tax</div>
+                      <div className="text-lg font-bold text-slate-900">{inr(balanceTax)}</div>
+                    </div>
+                  </div>
+
+                  <dl className="text-sm divide-y divide-gray-100">
+                    {(
+                      [
+                        ['Gross earnings from employment', inr(td.grossEarnings)],
+                        ['Exemptions & deductions', `- ${inr(td.exemptDeductions)}`],
+                        ['Net taxable income', inr(td.netTaxableIncome)],
+                        ['Tax on income', inr(td.taxOnIncome)],
+                        ['Rebate', `- ${inr(td.rebate)}`],
+                        ['Health & education cess', inr(td.cess)],
+                      ] as const
+                    ).map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-2">
+                        <dt className="text-gray-600">{label}</dt>
+                        <dd className="font-medium text-gray-900">{value}</dd>
+                      </div>
+                    ))}
+                    <div className="flex justify-between py-2.5">
+                      <dt className="font-semibold text-slate-900">Total tax payable</dt>
+                      <dd className="font-bold text-purple-600">{inr(td.totalTaxPayable)}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            )}
+
+            {taxSubTab === 'declarations' && (
+              <div className="pt-2">
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-200">
+                    <h2 className="text-base font-bold text-slate-900">My Declarations</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">Declarations you have made under various tax sections.</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Section</th>
+                          <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">Declarations</th>
+                          <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">Declared</th>
+                          <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">Proofs</th>
+                          <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">Accepted</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {declarationRows.map((r) => (
+                          <tr key={r.section} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-5 py-3 text-sm font-medium text-gray-900">{r.section}</td>
+                            <td className="px-5 py-3 text-sm text-gray-700 text-right">{r.count}</td>
+                            <td className="px-5 py-3 text-sm text-gray-700 text-right">{inr(r.declared)}</td>
+                            <td className="px-5 py-3 text-sm text-gray-700 text-right">{r.proofs}</td>
+                            <td className="px-5 py-3 text-sm font-medium text-gray-900 text-right">{inr(r.accepted)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {taxSubTab === 'previous' && (
+              <div className="pt-2 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Add income from your previous employer this financial year so your tax is computed correctly.
+                  You can add previous income till <span className="font-semibold text-gray-900">Aug 31, 2026</span>.
+                </p>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Month</th>
+                          <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">Gross Earnings</th>
+                          <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">Income Tax</th>
+                          <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {previousIncomeRows.map((r) => (
+                          <tr key={r.month} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-5 py-3 text-sm font-medium text-gray-900">{r.month}</td>
+                            <td className="px-5 py-3 text-sm text-gray-700 text-right">{inr(r.gross)}</td>
+                            <td className="px-5 py-3 text-sm text-gray-700 text-right">{inr(r.tax)}</td>
+                            <td className="px-5 py-3 text-right">
+                              <button className="text-xs font-semibold text-purple-600 hover:text-purple-700">Edit</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {taxSubTab === 'forms' && (
+              <div className="pt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {taxForms.map((f) => (
+                  <div key={f.name} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+                    <h2 className="text-base font-bold text-slate-900">{f.name}</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">{f.formerly}</p>
+                    <p className="text-sm text-gray-600 mt-3">{f.desc}</p>
+                    <p className="text-xs text-gray-500 mt-3">For FY {fyLabel}</p>
+                    <button
+                      onClick={() => downloadTaxDoc(f.name)}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <DownloadIcon /> Download {f.name}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
