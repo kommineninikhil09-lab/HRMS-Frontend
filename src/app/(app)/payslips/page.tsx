@@ -2,6 +2,88 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { DashboardCard } from '@/components/dashboard/DashboardCard';
+import { IdCardIcon, FileTextIcon, ReceiptIcon, TrendingUpIcon, ChevronDownIcon } from '@/components/icons';
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{label}</div>
+      <div className="text-sm font-semibold text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function DocBlock({
+  title,
+  groupLabel,
+  fields,
+}: {
+  title: string;
+  groupLabel?: string;
+  fields: { label: string; value: string }[];
+}) {
+  return (
+    <div>
+      {groupLabel ? (
+        <p className="text-sm font-bold text-slate-900 mb-3">{groupLabel}</p>
+      ) : null}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-base leading-none" aria-hidden>🇮🇳</span>
+          <span className="text-sm font-semibold text-slate-900">{title}</span>
+          <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5">
+            VERIFIED
+          </span>
+        </div>
+        <button className="text-xs font-medium text-blue-600 hover:text-blue-700 shrink-0">1 file</button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {fields.map((f) => (
+          <Field key={f.label} label={f.label} value={f.value} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const payrollSummary = {
+  lastProcessedCycle: 'Jul 2026 (28 Jun - 27 Jul)',
+  workingDays: '30',
+  lossOfPay: '0',
+};
+
+const paymentInfo = {
+  mode: 'Bank Transfer',
+  bankName: 'HDFC Bank',
+  accountNumber: 'XXXX XXXX 6712',
+  ifsc: 'HDFC0000123',
+  nameOnAccount: 'Alex Morgan',
+  branch: 'MG Road, Bengaluru',
+};
+
+const statutoryInfo = {
+  lwfStatus: 'Enabled',
+  lwfState: 'Karnataka',
+  employeeContribution: '₹20 / month',
+  employerContribution: '₹40 / month',
+};
+
+const panCardFields = [
+  { label: 'Permanent Account Number (PAN)', value: 'ABCDE1234F' },
+  { label: 'Name', value: 'Alex Morgan' },
+  { label: 'Date of Birth', value: '15 Apr 1996' },
+  { label: "Parent's Name", value: 'Jordan Morgan' },
+];
+
+const aadhaarFields = [
+  { label: 'Aadhaar Number', value: 'XXXX XXXX 3456' },
+  { label: 'Enrollment Number', value: 'Not Available' },
+  { label: 'Date of Birth', value: '15 Apr 1996' },
+  { label: 'Name', value: 'Alex Morgan' },
+  { label: 'Address', value: '12 Park Avenue, Indiranagar, Bengaluru, Karnataka' },
+  { label: 'Gender', value: 'Male' },
+];
 
 const DownloadIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -86,13 +168,14 @@ const getCategoryColor = (category: string) => {
 
 export default function PayslipsPage() {
   const searchParams = useSearchParams();
-  const [selectedTab, setSelectedTab] = useState('pay');
+  const [selectedTab, setSelectedTab] = useState('summary');
   const [expensesSubTab, setExpensesSubTab] = useState('summary');
   const [selectedPayslip, setSelectedPayslip] = useState<number | null>(payslips[0].id);
+  const [salaryExpanded, setSalaryExpanded] = useState(false);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'pay' || tab === 'tax' || tab === 'expenses') {
+    if (tab === 'summary' || tab === 'pay' || tab === 'tax' || tab === 'expenses') {
       setSelectedTab(tab);
     }
   }, [searchParams]);
@@ -108,6 +191,16 @@ export default function PayslipsPage() {
       {/* Tabs */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-8">
         <div className="flex gap-6">
+          <button
+            onClick={() => setSelectedTab('summary')}
+            className={`px-1 py-3 border-b-2 font-semibold text-sm transition-colors ${
+              selectedTab === 'summary'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Summary
+          </button>
           <button
             onClick={() => setSelectedTab('pay')}
             className={`px-1 py-3 border-b-2 font-semibold text-sm transition-colors ${
@@ -142,6 +235,72 @@ export default function PayslipsPage() {
       </div>
 
       <div className="p-4 sm:p-6">
+        {/* Summary Tab */}
+        {selectedTab === 'summary' && (
+          <div className="space-y-5">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_8px_rgba(15,23,42,0.04)] px-5 py-5">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
+                <h2 className="text-lg font-bold text-slate-900 shrink-0">Payroll summary</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 flex-1">
+                  <Field label="Last Processed Cycle" value={payrollSummary.lastProcessedCycle} />
+                  <Field label="Working Days" value={payrollSummary.workingDays} />
+                  <Field label="Loss of Pay" value={payrollSummary.lossOfPay} />
+                  <div>
+                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Payslip</div>
+                    <button
+                      onClick={() => setSelectedTab('pay')}
+                      className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      View payslip
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+              <div className="space-y-5">
+                <DashboardCard title="Payment Information" icon={<ReceiptIcon className="w-4 h-4" />}>
+                  <div className="mb-5 pb-5 border-b border-slate-100">
+                    <Field label="Payment Mode" value={paymentInfo.mode} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
+                    <Field label="Bank Name" value={paymentInfo.bankName} />
+                    <Field label="Account Number" value={paymentInfo.accountNumber} />
+                    <Field label="IFSC Code" value={paymentInfo.ifsc} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    <Field label="Name on the Account" value={paymentInfo.nameOnAccount} />
+                    <Field label="Branch" value={paymentInfo.branch} />
+                  </div>
+                </DashboardCard>
+
+                <DashboardCard title="Statutory Information" icon={<FileTextIcon className="w-4 h-4" />}>
+                  <p className="text-sm font-bold text-slate-900 mb-3">LWF Details</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <Field label="LWF Status" value={statutoryInfo.lwfStatus} />
+                    <Field label="LWF State" value={statutoryInfo.lwfState} />
+                    <Field label="Employee Contribution" value={statutoryInfo.employeeContribution} />
+                    <Field label="Employer Contribution" value={statutoryInfo.employerContribution} />
+                  </div>
+                </DashboardCard>
+              </div>
+
+              <DashboardCard title="Identity Information" icon={<IdCardIcon className="w-4 h-4" />}>
+                <div className="space-y-6">
+                  <DocBlock title="PAN Card" fields={panCardFields} />
+                  <div className="pt-6 border-t border-slate-100">
+                    <DocBlock title="Aadhaar Card" groupLabel="Photo ID" fields={aadhaarFields} />
+                  </div>
+                  <div className="pt-6 border-t border-slate-100">
+                    <DocBlock title="Aadhaar Card" groupLabel="Address Proof" fields={aadhaarFields} />
+                  </div>
+                </div>
+              </DashboardCard>
+            </div>
+          </div>
+        )}
+
         {/* My Pay Tab */}
         {selectedTab === 'pay' && (
           <>
@@ -151,21 +310,21 @@ export default function PayslipsPage() {
                   <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <CalendarIcon />
                   </span>
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Current Month</span>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Compensation</span>
                 </div>
-                <div className="text-xl font-bold text-slate-900">£45,000</div>
-                <div className="text-xs text-slate-500 mt-1">Gross Salary</div>
+                <div className="text-xl font-bold text-slate-900">₹9,00,000</div>
+                <div className="text-xs text-slate-500 mt-1">Per annum</div>
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
-                    <DownloadIcon />
+                    <CalendarIcon />
                   </span>
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">YTD Total</span>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Pay Cycle</span>
                 </div>
-                <div className="text-xl font-bold text-slate-900">£180,000</div>
-                <div className="text-xs text-slate-500 mt-1">Year-to-Date Earnings</div>
+                <div className="text-xl font-bold text-slate-900">Monthly</div>
+                <div className="text-xs text-slate-500 mt-1">Paid on the last working day</div>
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
@@ -177,6 +336,70 @@ export default function PayslipsPage() {
                 </div>
                 <div className="text-xl font-bold text-slate-900">Sep 30</div>
                 <div className="text-xs text-slate-500 mt-1">2026</div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">
+              <h2 className="text-base font-bold text-slate-900 mb-4">Salary Timeline</h2>
+
+              <div className="flex gap-3">
+                <span className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                  <TrendingUpIcon className="w-4 h-4" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-bold text-slate-900">Salary Revision</h3>
+                    <span className="text-xs text-slate-500">Effective 01 Jun 2026</span>
+                    <span className="text-[10px] font-bold bg-teal-100 text-teal-700 rounded px-1.5 py-0.5 uppercase tracking-wide">
+                      Current
+                    </span>
+                  </div>
+
+                  <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-3 flex items-center justify-between gap-4">
+                      <button
+                        onClick={() => setSalaryExpanded((v) => !v)}
+                        className="flex items-center gap-4 text-left"
+                        aria-expanded={salaryExpanded}
+                      >
+                        <ChevronDownIcon
+                          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${salaryExpanded ? '' : '-rotate-90'}`}
+                        />
+                        <div>
+                          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Regular Salary</div>
+                          <div className="text-sm font-semibold text-slate-900">₹9,00,000</div>
+                        </div>
+                        <span className="text-slate-400">=</span>
+                        <div>
+                          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Total</div>
+                          <div className="text-sm font-semibold text-emerald-600">₹9,00,000</div>
+                        </div>
+                      </button>
+                      <button className="text-xs font-semibold text-purple-600 hover:text-purple-700 shrink-0">
+                        View Salary Breakdown
+                      </button>
+                    </div>
+
+                    {salaryExpanded && (
+                      <div className="border-t border-gray-200">
+                        <div className="bg-gray-50 px-4 py-2.5 flex items-center gap-3 text-xs">
+                          <span className="font-semibold text-slate-500 uppercase tracking-wide">Regular Salary</span>
+                          <span className="font-semibold text-slate-900">₹9,00,000 / Annum</span>
+                        </div>
+                        <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Salary / Month</div>
+                            <div className="text-sm font-semibold text-slate-900">₹75,000</div>
+                          </div>
+                          <div>
+                            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Effective From</div>
+                            <div className="text-sm font-semibold text-slate-900">01 Jun 2026</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
