@@ -70,31 +70,27 @@ export default function PerformancePage() {
   const [showMeetingForm, setShowMeetingForm] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Performance</h1>
-        <p className="text-base text-gray-600">Track your reviews, goals, and career development</p>
-      </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {/* Performance Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border border-blue-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-blue-600 mb-3 text-lg"><StarIcon /></div>
             <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">Overall Rating</div>
             <div className="text-4xl font-bold text-blue-700 mb-2">4.5/5</div>
             <div className="text-sm text-blue-600">Based on latest review</div>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-emerald-600 mb-3 text-lg"><TrendingUpIcon /></div>
             <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Active Goals</div>
             <div className="text-4xl font-bold text-emerald-700 mb-2">3</div>
             <div className="text-sm text-emerald-600">All on track</div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-purple-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-purple-600 mb-3 text-lg"><StarIcon /></div>
             <div className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Next Review</div>
             <div className="text-4xl font-bold text-purple-700 mb-2">Dec 15</div>
@@ -103,7 +99,7 @@ export default function PerformancePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-6 mb-8 border-b border-gray-200 overflow-x-auto">
+        <div className="flex gap-4 mb-5 border-b border-gray-200 overflow-x-auto">
           {[
             { id: 'reviews', label: 'Performance Reviews' },
             { id: 'goals', label: 'Development Goals' },
@@ -129,7 +125,7 @@ export default function PerformancePage() {
         {activeTab === 'reviews' && (
           <div className="space-y-6">
             {reviews.map((review) => (
-              <div key={review.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group relative">
+              <div key={review.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group relative">
                 {/* Heritage Accent */}
                 <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
@@ -176,11 +172,11 @@ export default function PerformancePage() {
         {activeTab === 'goals' && (
           <div className="space-y-6">
             {goals.map((goal) => (
-              <div key={goal.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
+              <div key={goal.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">{goal.title}</h3>
+                      <h3 className="text-sm font-semibold text-slate-900">{goal.title}</h3>
                       <p className="text-sm text-gray-600 mt-1">Due: {goal.dueDate}</p>
                     </div>
                     <span className={`text-xs px-3 py-1 rounded-full font-medium ${
@@ -252,7 +248,7 @@ export default function PerformancePage() {
             </div>
 
             {feedbackType === 'give' && (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
                 <h3 className="text-xl font-bold text-gray-900 mb-6">Give Feedback</h3>
                 <div className="space-y-5">
                   <div>
@@ -286,7 +282,7 @@ export default function PerformancePage() {
             )}
 
             {feedbackType === 'request' && (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
                 <h3 className="text-xl font-bold text-gray-900 mb-6">Request Feedback</h3>
                 <div className="space-y-5">
                   <div>
@@ -319,8 +315,8 @@ export default function PerformancePage() {
               </div>
             )}
 
-            <div className="bg-white rounded-xl border border-gray-200 p-8">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">Feedback History</h3>
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <h3 className="text-base font-bold text-slate-900 mb-4">Feedback History</h3>
               <div className="space-y-4">
                 {[
                   { from: 'Sarah Jenkins', date: '2 weeks ago', category: 'Communication', sentiment: 'positive' },
@@ -347,7 +343,7 @@ export default function PerformancePage() {
         {/* Skills Tab */}
         {activeTab === 'skills' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
               <h3 className="text-xl font-bold text-gray-900 mb-6">Skills Assessment</h3>
               <div className="space-y-6">
                 {[
@@ -390,8 +386,8 @@ export default function PerformancePage() {
               </button>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Recommended Development Areas</h3>
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <h3 className="text-base font-bold text-slate-900 mb-3">Recommended Development Areas</h3>
               <ul className="space-y-3">
                 <li className="flex items-start gap-3">
                   <span className="text-amber-600 mt-1">→</span>
@@ -423,7 +419,7 @@ export default function PerformancePage() {
             </div>
 
             {showMeetingForm && (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                 <h3 className="text-xl font-bold text-gray-900 mb-6">Schedule 1:1 Meeting</h3>
                 <div className="space-y-5">
                   <div>
@@ -462,12 +458,12 @@ export default function PerformancePage() {
             )}
 
             <div className="space-y-4">
-              <h3 className="text-lg font-bold text-gray-900">Upcoming 1:1s</h3>
+              <h3 className="text-base font-bold text-slate-900">Upcoming 1:1s</h3>
               {[
                 { date: 'Aug 28, 2026 at 2:00 PM', manager: 'Sarah Jenkins', status: 'scheduled', topics: 'Q3 review, career goals' },
                 { date: 'Sep 4, 2026 at 2:00 PM', manager: 'Sarah Jenkins', status: 'scheduled', topics: 'Project updates' },
               ].map((meeting, idx) => (
-                <div key={idx} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="font-semibold text-gray-900">{meeting.date}</p>
@@ -493,12 +489,12 @@ export default function PerformancePage() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-bold text-gray-900">Past 1:1s</h3>
+              <h3 className="text-base font-bold text-slate-900">Past 1:1s</h3>
               {[
                 { date: 'Aug 21, 2026', manager: 'Sarah Jenkins', notes: 'Discussed H2 roadmap and skill development' },
                 { date: 'Aug 14, 2026', manager: 'Sarah Jenkins', notes: 'Performance review prep, career path planning' },
               ].map((meeting, idx) => (
-                <div key={idx} className="bg-white rounded-xl border border-gray-200 p-6">
+                <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5">
                   <p className="font-semibold text-gray-900">{meeting.date}</p>
                   <p className="text-sm text-gray-600 mt-1">with {meeting.manager}</p>
                   <p className="text-sm text-gray-700 mt-3">{meeting.notes}</p>

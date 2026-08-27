@@ -18,6 +18,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
+  updateProfile: (updates: { firstName: string; lastName: string }) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,6 +91,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user.permissions.includes(permission);
   };
 
+  const updateProfile = async (updates: { firstName: string; lastName: string }) => {
+    const response = await fetch('/api/users/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error?.message || 'Failed to update profile');
+    }
+
+    const data = await response.json();
+    setUser((prev) => (prev ? { ...prev, firstName: data.data.firstName, lastName: data.data.lastName } : prev));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -99,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         hasPermission,
+        updateProfile,
       }}
     >
       {children}

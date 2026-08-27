@@ -65,28 +65,24 @@ export default function MePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Me</h1>
-        <p className="text-base text-gray-600">Access your personal information and records</p>
-      </div>
 
       {/* Navigation Cards */}
-      <div className="p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="p-4 sm:p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {sections.map((section) => {
             const Icon = section.icon;
             return (
               <button
                 key={section.id}
                 onClick={() => router.push(section.path)}
-                className="group bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all hover:border-gray-300"
+                className="group bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-all hover:border-gray-300"
               >
                 <div className={`w-14 h-14 bg-gradient-to-br ${section.color} rounded-lg flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
                   <Icon />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2 text-left">{section.title}</h3>
+                <h3 className="text-base font-bold text-slate-900 mb-2 text-left">{section.title}</h3>
                 <p className="text-sm text-gray-600 mb-4 text-left">{section.description}</p>
                 <div className="text-indigo-600 font-medium text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
                   View Details

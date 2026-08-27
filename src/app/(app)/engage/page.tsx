@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const HeartIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -15,7 +16,15 @@ const CommentIcon = () => (
 );
 
 export default function EngagePage() {
+  const searchParams = useSearchParams();
   const [selectedTab, setSelectedTab] = useState('post');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'post' || tab === 'poll' || tab === 'praise') {
+      setSelectedTab(tab);
+    }
+  }, [searchParams]);
   const [postContent, setPostContent] = useState('');
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '', '']);
@@ -39,17 +48,13 @@ export default function EngagePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Engage</h1>
-        <p className="text-base text-gray-600">Stay connected with company announcements, polls, and articles</p>
-      </div>
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
 
-      <div className="bg-white border-b border-gray-200 px-8">
-        <div className="flex gap-8">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-8">
+        <div className="flex gap-5">
           <button
             onClick={() => setSelectedTab('post')}
-            className={`px-1 py-4 border-b-2 font-semibold transition-colors flex items-center gap-2 ${
+            className={`px-1 py-3 border-b-2 font-semibold transition-colors flex items-center gap-2 ${
               selectedTab === 'post' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -58,7 +63,7 @@ export default function EngagePage() {
           </button>
           <button
             onClick={() => setSelectedTab('poll')}
-            className={`px-1 py-4 border-b-2 font-semibold transition-colors flex items-center gap-2 ${
+            className={`px-1 py-3 border-b-2 font-semibold transition-colors flex items-center gap-2 ${
               selectedTab === 'poll' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -67,7 +72,7 @@ export default function EngagePage() {
           </button>
           <button
             onClick={() => setSelectedTab('praise')}
-            className={`px-1 py-4 border-b-2 font-semibold transition-colors flex items-center gap-2 ${
+            className={`px-1 py-3 border-b-2 font-semibold transition-colors flex items-center gap-2 ${
               selectedTab === 'praise' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -77,10 +82,10 @@ export default function EngagePage() {
         </div>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {/* POST TAB */}
         {selectedTab === 'post' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-2xl">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 max-w-2xl">
             <textarea
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
@@ -112,7 +117,7 @@ export default function EngagePage() {
 
         {/* POLL TAB */}
         {selectedTab === 'poll' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-2xl">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 max-w-2xl">
             <input
               type="text"
               value={pollQuestion}
@@ -186,7 +191,7 @@ export default function EngagePage() {
 
         {/* PRAISE TAB */}
         {selectedTab === 'praise' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-2xl">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 max-w-2xl">
             <input
               type="text"
               value={praiseEmployee}

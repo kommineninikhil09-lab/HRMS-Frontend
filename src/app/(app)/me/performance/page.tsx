@@ -80,9 +80,9 @@ export default function PerformancePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Lato']">
+    <div className="min-h-screen bg-gray-50 font-['Inter']">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm px-8 py-8">
+      <div className="bg-white border-b border-gray-200 shadow-sm px-4 sm:px-8 py-6 sm:py-8">
         <div className="flex items-center gap-4 mb-2">
           <button
             onClick={() => router.back()}
@@ -94,20 +94,20 @@ export default function PerformancePage() {
             </svg>
           </button>
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Performance</h1>
-            <p className="text-base text-gray-600">Track your performance metrics and feedback</p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-1">Performance</h1>
+            <p className="text-sm text-slate-500">Track your performance metrics and feedback</p>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-8 overflow-x-auto">
-        <div className="flex gap-8">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-8 overflow-x-auto">
+        <div className="flex gap-5">
           {performanceTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setSelectedTab(tab.id)}
-              className={`px-1 py-4 border-b-2 font-semibold transition-colors whitespace-nowrap ${
+              className={`px-1 py-3 border-b-2 font-semibold transition-colors whitespace-nowrap ${
                 selectedTab === tab.id
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -119,15 +119,15 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         {/* OVERVIEW TAB */}
         {selectedTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 space-y-6">
               {/* Performance Summary */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Overall Performance</h2>
-                <div className="flex items-center gap-8">
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                <h2 className="text-base font-bold text-slate-900 mb-3">Overall Performance</h2>
+                <div className="flex items-center gap-5">
                   <div className="relative w-32 h-32">
                     <svg className="w-32 h-32" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="10" />
@@ -144,7 +144,7 @@ export default function PerformancePage() {
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center flex-col">
-                      <div className="text-3xl font-bold text-indigo-600">8.2</div>
+                      <div className="text-2xl font-bold text-indigo-600">8.2</div>
                       <div className="text-xs text-gray-600">Overall</div>
                     </div>
                   </div>
@@ -161,8 +161,8 @@ export default function PerformancePage() {
               </div>
 
               {/* Current Objectives */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Current Objectives</h2>
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                <h2 className="text-base font-bold text-slate-900 mb-3">Current Objectives</h2>
                 <div className="space-y-4">
                   {objectives.map((obj) => (
                     <div key={obj.id} className="pb-4 border-b border-gray-200 last:border-b-0">
@@ -187,8 +187,8 @@ export default function PerformancePage() {
 
             {/* Right Column - Quick Stats */}
             <div className="space-y-6">
-              <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Performance Stats</h3>
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-base font-bold text-slate-900 mb-3">Performance Stats</h3>
                 <div className="space-y-4">
                   <div>
                     <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Total Feedbacks</div>
@@ -210,8 +210,8 @@ export default function PerformancePage() {
 
         {/* COMPETENCIES TAB */}
         {selectedTab === 'competencies' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-gray-900 mb-6">Your Competencies</h2>
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-4">Your Competencies</h2>
             <div className="space-y-6">
               {competencies.map((comp, idx) => (
                 <div key={idx}>
@@ -233,8 +233,8 @@ export default function PerformancePage() {
 
         {/* OBJECTIVES & KRA TAB */}
         {selectedTab === 'objectives' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-gray-900 mb-6">Objectives & KRA</h2>
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-4">Objectives & KRA</h2>
             <div className="space-y-4">
               {objectives.map((obj) => (
                 <div key={obj.id} className="pb-6 border-b border-gray-200 last:border-b-0">
@@ -261,7 +261,7 @@ export default function PerformancePage() {
         {selectedTab === 'feedback' && (
           <div className="space-y-4">
             {feedbacks.map((fb) => (
-              <div key={fb.id} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div key={fb.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h3 className="font-semibold text-gray-900">{fb.from}</h3>
@@ -283,26 +283,26 @@ export default function PerformancePage() {
 
         {/* REVIEWS TAB */}
         {selectedTab === 'reviews' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Period</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Reviewer</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Rating</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Period</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Reviewer</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rating</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {reviews.map((review, idx) => (
                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{review.year}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700">{review.type}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700">{review.reviewer}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-indigo-600">{review.rating}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{review.year}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{review.type}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{review.reviewer}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-indigo-600">{review.rating}</td>
+                      <td className="px-4 py-3">
                         <div className={`inline-flex px-3 py-1.5 rounded-full text-xs font-semibold ${getStatusColor(review.status)}`}>
                           {review.status}
                         </div>
@@ -319,7 +319,7 @@ export default function PerformancePage() {
         {selectedTab === 'meetings' && (
           <div className="space-y-4">
             {meetings.map((meeting) => (
-              <div key={meeting.id} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div key={meeting.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-semibold text-gray-900">{meeting.manager}</h3>
@@ -347,9 +347,9 @@ export default function PerformancePage() {
 
         {/* SKILLS TAB */}
         {selectedTab === 'skills' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-gray-900 mb-6">Your Skills</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-4">Your Skills</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {skills.map((skill, idx) => (
                 <div key={idx} className="pb-6 border-b border-gray-200 md:last:border-b-0">
                   <div className="flex justify-between items-center mb-2">

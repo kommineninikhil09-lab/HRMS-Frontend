@@ -1,54 +1,57 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth/useAuth';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { ProfileDropdown } from '@/components/ProfileDropdown';
+import {
+  HomeIcon,
+  InboxIcon,
+  TeamIcon,
+  WalletIcon,
+  TimerIcon,
+  CalendarCheckIcon,
+  CalendarIcon,
+  TrendingUpIcon,
+  MessageCircleIcon,
+  GridIcon,
+  SettingsIcon,
+  HelpIcon,
+  ChevronDownIcon,
+  MenuIcon,
+  XIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  SearchIcon,
+  BellIcon,
+  FingerprintIcon,
+} from '@/components/icons';
 
-const HomeIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M3 12l9-9 9 9h-2v7a2 2 0 01-2 2h-10a2 2 0 01-2-2v-7H3z" />
-  </svg>
-);
+type RequiredRole = 'admin' | 'employee' | 'manager';
 
-const PersonIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2c2.757 0 5 2.243 5 5s-2.243 5-5 5-5-2.243-5-5 2.243-5 5-5zm0 10c3.86 0 7 1.79 7 4v3H5v-3c0-2.21 3.14-4 7-4z" />
-  </svg>
-);
+const roleLabels: Record<RequiredRole, string> = {
+  admin: 'HR Administrator',
+  manager: 'Manager',
+  employee: 'Employee',
+};
 
-const InboxIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-2.83-2.83-1.41 1.41L10.5 17l4.96-6.29-1.46-1.42z" />
-  </svg>
-);
+function roleLabel(role?: string) {
+  return roleLabels[role as RequiredRole] || 'Employee';
+}
 
-const TeamIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-  </svg>
-);
+interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  roles: RequiredRole[];
+  badge?: number;
+  children?: { label: string; href: string }[];
+}
 
 const CreditCardIcon = () => (
   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
     <path d="M20 6h-2.15c-.3-1.23-1.31-2.1-2.85-2.1h-4c-1.54 0-2.55.87-2.85 2.1H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-7-2h4c.55 0 1 .45 1 1s-.45 1-1 1h-4c-.55 0-1-.45-1-1s.45-1 1-1z" />
-  </svg>
-);
-
-const BuildingIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-  </svg>
-);
-
-const SparklesIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
-  </svg>
-);
-
-const ChartIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 9.5c0 .83-.67 1.5-1.5 1.5S11 13.33 11 12.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5zm3-4c0 .83-.67 1.5-1.5 1.5S15 9.33 15 8.5 15.67 7 16.5 7 18 7.67 18 8.5z" />
   </svg>
 );
 
@@ -58,20 +61,81 @@ const AdminIcon = () => (
   </svg>
 );
 
-const navItems = [
-  { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
-  { id: 'me', label: 'Me', icon: PersonIcon, href: '/me', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
-  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
-  { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['manager', 'Admin', 'Super Admin'] },
-  { id: 'finances', label: 'My Finances', icon: CreditCardIcon, href: '/payslips', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
-  { id: 'admin', label: 'Admin', icon: AdminIcon, href: '/admin', roles: ['Admin', 'Super Admin'] },
-  { id: 'engage', label: 'Engage', icon: SparklesIcon, href: '/engage', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
-  { id: 'perf', label: 'Perf', icon: ChartIcon, href: '/performance', roles: ['Admin', 'employee', 'manager', 'Super Admin'] },
+const navItems: NavItem[] = [
+  { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['admin', 'employee', 'manager'] },
+  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['admin', 'employee', 'manager'] },
+  { id: 'attendance', label: 'Attendance', icon: CalendarCheckIcon, href: '/attendance', roles: ['admin', 'employee', 'manager'] },
+  { id: 'leave', label: 'Leave Management', icon: CalendarIcon, href: '/leave', roles: ['admin', 'employee', 'manager'] },
+  { id: 'timesheet', label: 'Timesheet', icon: TimerIcon, href: '/timesheet', roles: ['admin', 'employee', 'manager'] },
+  { id: 'finances', label: 'My Finances', icon: CreditCardIcon, href: '/payslips', roles: ['admin', 'employee', 'manager'] },
+  {
+    id: 'perf',
+    label: 'Performance',
+    icon: TrendingUpIcon,
+    href: '/performance',
+    roles: ['admin', 'employee', 'manager'],
+    children: [
+      { label: 'Performance', href: '/performance' },
+      { label: 'Learning', href: '/learning' },
+      { label: 'Career', href: '/career' },
+    ],
+  },
+  { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['admin', 'employee', 'manager'] },
+  { id: 'org', label: 'Organization', icon: TeamIcon, href: '/employees', roles: ['admin'] },
+  {
+    id: 'engage',
+    label: 'Engage',
+    icon: MessageCircleIcon,
+    href: '/engage',
+    roles: ['admin', 'employee', 'manager'],
+    children: [
+      { label: 'Posts', href: '/engage?tab=post' },
+      { label: 'Polls', href: '/engage?tab=poll' },
+      { label: 'Praise', href: '/engage?tab=praise' },
+    ],
+  },
+  { id: 'admin', label: 'Admin', icon: AdminIcon, href: '/admin', roles: ['admin'] },
+  { id: 'apps', label: 'Apps', icon: GridIcon, href: '/apps', roles: ['admin', 'employee', 'manager'] },
 ];
+
+const COLLAPSE_STORAGE_KEY = 'hrms-sidebar-collapsed';
+
+const pageTitles: Record<string, { title: string; subtitle?: string }> = {
+  '/': { title: 'Home', subtitle: 'Overview of your workday and organization updates' },
+  '/inbox': { title: 'Inbox', subtitle: 'Review messages, requests, and notifications that need your attention' },
+  '/me/attendance': { title: 'Attendance', subtitle: 'Track your attendance, timings, and attendance requests' },
+  '/leave': { title: 'Leave Management', subtitle: 'View your leave balance, requests, and time off' },
+  '/timesheet': { title: 'Timesheet', subtitle: 'Track logged hours across projects and categories' },
+  '/team': { title: 'My Team', subtitle: 'View your team, schedules, and workplace activity' },
+  '/employees': { title: 'Organization', subtitle: 'Manage employees and organizational documents' },
+  '/settings': { title: 'Settings', subtitle: 'Manage your account preferences' },
+  '/help': { title: 'Help & Support', subtitle: 'Find answers to common questions' },
+  '/performance': { title: 'Performance', subtitle: 'Track reviews, goals, feedback, and career development' },
+  '/payslips': { title: 'My Finances', subtitle: 'View your payslips, salary, taxes, and expenses' },
+  '/me': { title: 'Me', subtitle: 'Access your personal information and records' },
+  '/engage': { title: 'Engage', subtitle: 'Connect with colleagues and stay updated with your organization' },
+  '/calendar': { title: 'Calendar', subtitle: 'Upcoming company events and holidays' },
+  '/apps': { title: 'Apps', subtitle: 'Access the tools and applications available to you' },
+  '/reports': { title: 'Reports', subtitle: 'Headcount, attendance, leave, and payroll analytics' },
+  '/learning': { title: 'Learning', subtitle: 'Courses, certifications, and skill-building resources' },
+  '/career': { title: 'Career', subtitle: 'Growth plans, internal mobility, and career conversations' },
+};
+
+function getPageTitle(pathname: string) {
+  if (pathname === '/') return pageTitles['/'];
+  const match = Object.keys(pageTitles)
+    .filter((key) => key !== '/' && pathname.startsWith(key))
+    .sort((a, b) => b.length - a.length)[0];
+  return match ? pageTitles[match] : null;
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -79,10 +143,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [pathname]);
+
+  // Restore the user's collapse preference, defaulting tablet widths to collapsed.
+  useEffect(() => {
+    const stored = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (stored !== null) {
+      setCollapsed(stored === 'true');
+    } else if (window.innerWidth >= 768 && window.innerWidth < 1280) {
+      setCollapsed(true);
+    }
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(COLLAPSE_STORAGE_KEY, String(next));
+      return next;
+    });
+  };
+
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Loading...</div>
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="text-slate-600">Loading...</div>
       </div>
     );
   }
@@ -93,63 +179,230 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const filteredNavItems = navItems.filter((item) => {
     if (!user || !user.roles) return false;
-    return user.roles.some((role: any) => item.roles.includes(role.name));
+    return user.roles.some((role: any) => item.roles.includes(role.name.toLowerCase()));
   });
 
-  return (
-    <div className="flex h-screen bg-gray-50">
-      <div className="w-24 bg-gradient-to-b from-slate-700 via-slate-800 to-slate-900 text-white flex flex-col items-center py-8 space-y-6">
-        {/* User Avatar at Top */}
-        <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">
-          {user?.firstName?.charAt(0) || 'E'}
-        </div>
+  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
-        {/* Navigation Items */}
-        <nav className="flex flex-col flex-1 space-y-4 items-center w-full">
-          {filteredNavItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <a
-                key={item.id}
-                href={item.href}
-                className="flex flex-col items-center gap-2 text-slate-400 hover:text-white transition-colors group relative"
-              >
-                <div className="relative">
-                  <div className="w-8 h-8 flex items-center justify-center">
-                    <Icon />
-                  </div>
-                  {item.badge && (
-                    <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold text-white">
-                      {item.badge}
-                    </div>
-                  )}
-                </div>
-                <span className="text-xs font-medium text-center whitespace-nowrap px-2">
-                  {item.label}
-                </span>
-              </a>
-            );
-          })}
-        </nav>
+  const currentPageTitle = getPageTitle(pathname);
 
-        {/* Logout Button at Bottom */}
-        <button
-          onClick={async () => {
-            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-            window.location.href = '/login';
+  const renderNavLink = (item: NavItem) => {
+    const Icon = item.icon;
+    const active = isActive(item.href);
+    const hasChildren = !!item.children?.length;
+    const expanded = expandedId === item.id;
+
+    return (
+      <div key={item.id} className="group/nav relative">
+        <a
+          href={item.href}
+          onClick={(e) => {
+            if (hasChildren && !collapsed) {
+              e.preventDefault();
+              setExpandedId(expanded ? null : item.id);
+            }
+>>>>>>> employee_view
           }}
-          className="flex flex-col items-center gap-2 text-slate-400 hover:text-white transition-colors cursor-pointer"
-          title="Logout"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors relative ${
+            collapsed ? 'md:justify-center md:px-0' : ''
+          } ${active ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
         >
-          <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-          </svg>
-          <span className="text-xs font-medium text-center">Logout</span>
+          <span className="relative shrink-0">
+            <Icon className="w-5 h-5" />
+            {item.badge && collapsed ? (
+              <span className="hidden md:flex absolute -top-1.5 -right-1.5 items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold w-4 h-4">
+                {item.badge}
+              </span>
+            ) : null}
+          </span>
+          <span className={`flex-1 truncate ${collapsed ? 'md:hidden' : ''}`}>{item.label}</span>
+          {item.badge ? (
+            <span
+              className={`${
+                collapsed ? 'md:hidden' : ''
+              } w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold shrink-0`}
+            >
+              {item.badge}
+            </span>
+          ) : null}
+          {hasChildren ? (
+            <ChevronDownIcon
+              className={`w-4 h-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''} ${
+                collapsed ? 'md:hidden' : ''
+              }`}
+            />
+          ) : null}
+        </a>
+
+        {/* Collapsed-state tooltip */}
+        {collapsed ? (
+          <span className="hidden md:group-hover/nav:block absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 whitespace-nowrap rounded-md bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 shadow-lg pointer-events-none">
+            {item.label}
+          </span>
+        ) : null}
+
+        {hasChildren && expanded && !collapsed ? (
+          <div className="mt-1 ml-8 space-y-0.5 border-l border-slate-700 pl-3">
+            {item.children!.map((child) => (
+              <a
+                key={child.label}
+                href={child.href}
+                className="block px-2 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                {child.label}
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const sidebarContent = (
+    <>
+      <div className={`flex items-center gap-3 px-5 pb-4 ${collapsed ? 'md:justify-center md:px-0' : ''}`}>
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
+          H
+        </div>
+        <span className={`text-white font-bold text-lg tracking-tight truncate ${collapsed ? 'md:hidden' : ''}`}>
+          HRMS Portal
+        </span>
+        <button
+          onClick={() => setIsMobileNavOpen(false)}
+          className="ml-auto md:hidden text-slate-300 hover:text-white p-1"
+          aria-label="Close navigation"
+        >
+          <XIcon className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        {children}
+      <div className={`hidden md:flex px-5 pb-4 ${collapsed ? 'md:justify-center md:px-0' : 'justify-end'}`}>
+        <button
+          onClick={toggleCollapsed}
+          className="text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg p-1.5 transition-colors"
+          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+        >
+          {collapsed ? <PanelLeftOpenIcon className="w-[18px] h-[18px]" /> : <PanelLeftCloseIcon className="w-[18px] h-[18px]" />}
+        </button>
+      </div>
+
+      <nav className="flex-1 min-h-0 px-3 space-y-1 overflow-y-auto scrollbar-hide">
+        {filteredNavItems.map(renderNavLink)}
+      </nav>
+
+      <div className="px-3 pt-3 mt-3 border-t border-slate-800 shrink-0">
+        <div className={`flex items-center gap-2 px-2 py-2 ${collapsed ? 'md:justify-center md:px-0' : ''}`}>
+          <div className="relative shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center font-bold text-sm text-white">
+              {user?.firstName?.charAt(0) || 'E'}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#0F172A]" />
+          </div>
+          <div className={`flex-1 min-w-0 ${collapsed ? 'md:hidden' : ''}`}>
+            <div className="text-sm font-semibold text-white truncate">
+              {user?.firstName} {user?.lastName}
+            </div>
+            <div className="text-xs text-slate-400 truncate">{roleLabel(user?.role)}</div>
+          </div>
+          <button
+            onClick={() => router.push('/settings')}
+            aria-label="Account settings"
+            title="Account settings"
+            className={`shrink-0 text-slate-400 hover:text-white transition-colors ${collapsed ? 'md:hidden' : ''}`}
+          >
+            <SettingsIcon className="w-[18px] h-[18px]" />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-screen bg-[#faf8ff] overflow-hidden">
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center gap-3 bg-white border-b border-slate-200 px-4 py-3">
+        <button onClick={() => setIsMobileNavOpen(true)} className="text-slate-700 p-1" aria-label="Open navigation">
+          <MenuIcon className="w-6 h-6" />
+        </button>
+        <span className="text-slate-900 font-bold">HRMS Portal</span>
+      </div>
+
+      {/* Mobile drawer overlay */}
+      {isMobileNavOpen ? (
+        <div className="md:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setIsMobileNavOpen(false)} />
+      ) : null}
+
+      {/* Sidebar */}
+      <aside
+        className={`w-52 ${
+          collapsed ? 'md:w-14' : 'md:w-52'
+        } shrink-0 bg-[#0F172A] flex flex-col py-6 fixed md:static inset-y-0 left-0 z-50 transition-[width,transform] duration-200 ease-in-out overflow-hidden ${
+          isMobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      <div className="flex-1 flex flex-col overflow-hidden pt-14 md:pt-0 min-w-0">
+        {/* Shared top bar, visible on every page */}
+        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 shrink-0">
+          {currentPageTitle ? (
+            <div className="min-w-0 shrink-0">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight truncate">{currentPageTitle.title}</h1>
+              {currentPageTitle.subtitle ? (
+                <p className="text-xs text-slate-500 truncate hidden sm:block">{currentPageTitle.subtitle}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search employees, docs, claims, leaves..."
+                className="w-full pl-4 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hidden sm:flex items-center gap-1">
+                <SearchIcon className="w-4 h-4" />
+                <kbd className="text-[10px] font-semibold border border-slate-200 rounded px-1 py-0.5">⌘K</kbd>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              onClick={() => router.push('/help')}
+              className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              title="Help"
+            >
+              <HelpIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => router.push('/attendance')}
+              className="shrink-0 flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full border border-indigo-200 text-indigo-600 text-sm font-semibold hover:bg-indigo-50 transition-colors"
+              title="Quick Check In"
+            >
+              <FingerprintIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Quick Check In</span>
+            </button>
+            <button
+              onClick={() => router.push('/notifications')}
+              className="relative p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              title="Notifications"
+            >
+              <BellIcon className="w-5 h-5" />
+              <span className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold">
+                4
+              </span>
+            </button>
+            <div className="pl-2 sm:pl-3 border-l border-slate-200">
+              <ProfileDropdown />
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
