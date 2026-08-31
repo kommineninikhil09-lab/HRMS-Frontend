@@ -91,6 +91,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Employee Directory', href: '/org?tab=directory' },
       { label: 'Organisation Chart', href: '/org?tab=chart' },
+      { label: 'Organization Documents', href: '/org?tab=documents' },
     ],
   },
   { id: 'org', label: 'Organization', icon: TeamIcon, href: '/employees', roles: ['admin'] },

@@ -58,11 +58,11 @@ const uniqueValues = (key: FilterKey) =>
 
 export default function OrgPage() {
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<'directory' | 'chart'>('directory');
+  const [tab, setTab] = useState<'directory' | 'chart' | 'documents'>('directory');
 
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'directory' || t === 'chart') setTab(t);
+    if (t === 'directory' || t === 'chart' || t === 'documents') setTab(t);
   }, [searchParams]);
 
   return (
@@ -73,6 +73,7 @@ export default function OrgPage() {
             [
               ['directory', 'Employee Directory'],
               ['chart', 'Organisation Chart'],
+              ['documents', 'Organization Documents'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -90,7 +91,192 @@ export default function OrgPage() {
         </div>
       </div>
 
-      <div className="p-4 sm:p-8">{tab === 'directory' ? <Directory /> : <OrgChart />}</div>
+      <div className="p-4 sm:p-8">
+        {tab === 'directory' ? <Directory /> : tab === 'chart' ? <OrgChart /> : <Documents />}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------ documents ------------------------------ */
+
+interface OrgDocument {
+  title: string;
+  description: string;
+  expires: string;
+  size: string;
+  updated: string;
+}
+
+interface DocFolder {
+  name: string;
+  documents: OrgDocument[];
+}
+
+const docFolders: DocFolder[] = [
+  {
+    name: 'Human Resources Policies',
+    documents: [
+      { title: 'Employee Training and Development', description: '', expires: 'No', size: '316.60 KB', updated: '24 May 2024' },
+      { title: 'Grievance Policy', description: '', expires: 'No', size: '334.18 KB', updated: '24 May 2024' },
+      { title: 'Code of Conduct Policy', description: '', expires: 'No', size: '269.41 KB', updated: '24 May 2024' },
+      { title: 'Work From Home Policy', description: 'Guidelines for remote and hybrid working', expires: 'No', size: '258.23 KB', updated: '24 May 2024' },
+      { title: 'Drug & Alcohol Policy', description: '', expires: 'No', size: '244.01 KB', updated: '24 May 2024' },
+      { title: 'Rewards and Recognition Policy', description: '', expires: 'No', size: '260.21 KB', updated: '24 May 2024' },
+      { title: 'Leave Policy', description: 'Leave types, accrual and application process', expires: 'No', size: '376.88 KB', updated: '25 May 2024' },
+      { title: 'Hiring Policy', description: '', expires: 'No', size: '243.49 KB', updated: '25 May 2024' },
+    ],
+  },
+  {
+    name: 'Compliance Policies',
+    documents: [
+      { title: 'Anti-Bribery & Corruption Policy', description: '', expires: 'No', size: '198.44 KB', updated: '18 Apr 2024' },
+      { title: 'Whistleblower Policy', description: '', expires: 'No', size: '176.10 KB', updated: '18 Apr 2024' },
+      { title: 'Data Protection & Privacy Policy', description: 'How employee and customer data is handled', expires: 'No', size: '312.77 KB', updated: '02 May 2024' },
+      { title: 'Conflict of Interest Policy', description: '', expires: 'No', size: '154.30 KB', updated: '02 May 2024' },
+      { title: 'Regulatory Reporting Guidelines', description: '', expires: '31 Dec 2025', size: '221.09 KB', updated: '11 Jun 2024' },
+    ],
+  },
+  {
+    name: 'Operational Policies',
+    documents: [
+      { title: 'Travel & Expense Policy', description: 'Booking, limits and reimbursement claims', expires: 'No', size: '287.65 KB', updated: '09 Mar 2024' },
+      { title: 'Asset Management Policy', description: '', expires: 'No', size: '203.12 KB', updated: '09 Mar 2024' },
+    ],
+  },
+  {
+    name: 'Information Security Policies',
+    documents: [
+      { title: 'Acceptable Use Policy', description: 'Use of company devices, email and internet', expires: 'No', size: '241.88 KB', updated: '20 Feb 2024' },
+      { title: 'Password & Access Control Policy', description: '', expires: 'No', size: '188.44 KB', updated: '20 Feb 2024' },
+    ],
+  },
+  {
+    name: 'Communication Policy',
+    documents: [
+      { title: 'Internal & External Communication Guidelines', description: '', expires: 'No', size: '167.20 KB', updated: '14 Jan 2024' },
+    ],
+  },
+  {
+    name: 'Risk Management Policies',
+    documents: [
+      { title: 'Enterprise Risk Management Framework', description: '', expires: 'No', size: '402.55 KB', updated: '30 Apr 2024' },
+      { title: 'Business Continuity Plan', description: 'Response and recovery procedures', expires: '30 Apr 2025', size: '355.90 KB', updated: '30 Apr 2024' },
+    ],
+  },
+  {
+    name: 'Insurance Policy',
+    documents: [
+      { title: 'Group Health Insurance Handbook', description: 'Coverage, network hospitals and claims', expires: '31 Mar 2025', size: '512.34 KB', updated: '01 Apr 2024' },
+    ],
+  },
+];
+
+function FolderIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+    </svg>
+  );
+}
+
+function Documents() {
+  const [activeFolder, setActiveFolder] = useState(docFolders[0].name);
+  const [folderSearch, setFolderSearch] = useState('');
+
+  const visibleFolders = docFolders.filter((f) =>
+    f.name.toLowerCase().includes(folderSearch.trim().toLowerCase()),
+  );
+  const folder = docFolders.find((f) => f.name === activeFolder) ?? docFolders[0];
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-slate-900">Organization documents</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Documents in these folders are uploaded by admin and available for viewing by all employees.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+        {/* Folder list */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 h-max">
+          <div className="relative mb-2">
+            <input
+              type="text"
+              value={folderSearch}
+              onChange={(e) => setFolderSearch(e.target.value)}
+              placeholder="Search"
+              className="w-full pl-8 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
+            />
+            <svg className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="space-y-0.5">
+            {visibleFolders.length === 0 ? (
+              <p className="px-3 py-6 text-center text-xs text-gray-400">No folders found.</p>
+            ) : (
+              visibleFolders.map((f) => (
+                <button
+                  key={f.name}
+                  onClick={() => setActiveFolder(f.name)}
+                  className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                    f.name === activeFolder ? 'bg-purple-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <FolderIcon className={`w-4 h-4 mt-0.5 shrink-0 ${f.name === activeFolder ? 'text-purple-600' : 'text-gray-400'}`} />
+                  <span className="min-w-0">
+                    <span className={`block text-sm font-medium truncate ${f.name === activeFolder ? 'text-purple-700' : 'text-slate-800'}`}>
+                      {f.name}
+                    </span>
+                    <span className="block text-xs text-gray-400">{f.documents.length} document{f.documents.length === 1 ? '' : 's'}</span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Document table */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-200">
+            <span className="w-9 h-9 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center shrink-0">
+              <FolderIcon className="w-4 h-4" />
+            </span>
+            <h3 className="text-base font-bold text-slate-900">{folder.name}</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Document Title</th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Description</th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Expiration Date</th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Size</th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Last Updated</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {folder.documents.map((doc) => (
+                  <tr key={doc.title} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-5 py-3">
+                      <button className="text-sm font-medium text-purple-600 hover:text-purple-700 hover:underline text-left">
+                        {doc.title}
+                      </button>
+                    </td>
+                    <td className="px-5 py-3 text-sm text-gray-500">{doc.description || '—'}</td>
+                    <td className="px-5 py-3 text-sm text-gray-700">{doc.expires}</td>
+                    <td className="px-5 py-3 text-sm text-gray-700">{doc.size}</td>
+                    <td className="px-5 py-3 text-sm text-gray-700">{doc.updated}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

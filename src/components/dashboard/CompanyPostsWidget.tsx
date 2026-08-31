@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { DashboardCard } from './DashboardCard';
-import { VoteIcon } from '@/components/icons';
+import { RequestToPostModal, RequestType } from '@/components/engage/RequestToPostModal';
 
 interface Post {
   id: number;
@@ -48,105 +47,86 @@ const posts: Post[] = [
   },
 ];
 
-const following: Post[] = [
+const requestTypeButtons: { type: RequestType; label: string; icon: React.ReactNode }[] = [
   {
-    id: 3,
-    author: 'Sarah Jenkins',
-    role: 'Senior Product Designer',
-    initials: 'SJ',
-    avatarColor: 'from-rose-600 to-pink-600',
-    time: '1 day ago',
-    title: 'New design system components are live',
-    text: 'Check out the refreshed component library — spacing, color tokens, and states are all documented in Figma.',
-    likes: 21,
-    comments: 4,
-    views: 67,
+    type: 'Announcement',
+    label: 'Announcement',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M3 10v4a1 1 0 0 0 1 1h2l3.29 3.29c.63.63 1.71.18 1.71-.71V6.41c0-.89-1.08-1.34-1.71-.71L6 9H4a1 1 0 0 0-1 1zm13.5 2c0-1.77-.77-3.37-2-4.47v8.94c1.23-1.1 2-2.7 2-4.47zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+      </svg>
+    ),
+  },
+  {
+    type: 'Poll',
+    label: 'Poll',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M3 13h2v8H3zm4-8h2v16H7zm4-2h2v18h-2zm4 6h2v12h-2zm4-4h2v16h-2z" />
+      </svg>
+    ),
+  },
+  {
+    type: 'Praise',
+    label: 'Praise',
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18 2H6v2H2v4c0 2.21 1.79 4 4 4h.28A6.01 6.01 0 0 0 11 17.91V20H7v2h10v-2h-4v-2.09A6.01 6.01 0 0 0 17.72 14H18c2.21 0 4-1.79 4-4V4h-4V2zM6 10c-1.1 0-2-.9-2-2V6h2v4zm14-2c0 1.1-.9 2-2 2V6h2v2z" />
+      </svg>
+    ),
   },
 ];
 
 export function CompanyPostsWidget() {
-  const router = useRouter();
-  const [tab, setTab] = useState<'posts' | 'following'>('posts');
-  const [content, setContent] = useState('');
   const [bookmarked, setBookmarked] = useState<number[]>([]);
+  const [requestType, setRequestType] = useState<RequestType | null>(null);
+  const [toast, setToast] = useState('');
 
-  const feed = tab === 'posts' ? posts : following;
+  const feed = posts;
 
   const toggleBookmark = (id: number) => {
     setBookmarked((prev) => (prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]));
   };
 
-  const handlePost = () => {
-    if (!content.trim()) return;
-    setContent('');
+  const submitRequest = () => {
+    setRequestType(null);
+    setToast('Request sent to the People Team for approval');
+    window.setTimeout(() => setToast(''), 3000);
   };
 
   return (
     <DashboardCard title="Company Posts" actionLabel="View more posts" actionHref="/engage">
-      <div className="flex gap-6 mb-4 -mt-1 border-b border-slate-100">
-        {(['posts', 'following'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`text-sm font-semibold pb-2.5 border-b-2 transition-colors capitalize ${
-              tab === t ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-800'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* Composer */}
+      {/* Composer — mirrors Engage: employees request a post for People Team approval */}
       <div className="border border-slate-200 rounded-lg p-3 mb-5">
-        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setRequestType('Announcement')}
+          className="flex items-center gap-3 w-full text-left"
+        >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
             ME
           </div>
-          <input
-            type="text"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Share an update with your organization..."
-            className="flex-1 bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400"
-          />
-        </div>
-        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100">
-          <div className="flex items-center gap-4 text-slate-400">
-            <button title="Text" className="hover:text-blue-600 transition-colors">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M5 4v3h5.5v12h3V7H19V4z" />
-              </svg>
-            </button>
-            <button title="Image" className="hover:text-blue-600 transition-colors">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
-              </svg>
-            </button>
-            <button title="Video" className="hover:text-blue-600 transition-colors">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
-              </svg>
-            </button>
-            <button title="Link" className="hover:text-blue-600 transition-colors">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
-              </svg>
-            </button>
-            <button
-              title="Poll"
-              onClick={() => router.push('/engage?tab=poll')}
-              className="hover:text-blue-600 transition-colors"
-            >
-              <VoteIcon className="w-4 h-4" />
-            </button>
+          <span className="flex-1 text-sm text-slate-400">Share an announcement, poll or praise…</span>
+        </button>
+        <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100">
+          <div className="flex items-center gap-1.5">
+            {requestTypeButtons.map((b) => (
+              <button
+                key={b.type}
+                title={`Request ${b.label}`}
+                onClick={() => setRequestType(b.type)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors"
+              >
+                {b.icon}
+                <span className="hidden sm:inline">{b.label}</span>
+              </button>
+            ))}
           </div>
           <button
-            onClick={handlePost}
-            disabled={!content.trim()}
-            className="px-4 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            onClick={() => setRequestType('Announcement')}
+            className="shrink-0 px-4 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition-colors"
           >
-            Post
+            Request to post
           </button>
         </div>
       </div>
@@ -200,6 +180,20 @@ export function CompanyPostsWidget() {
         ))}
         {feed.length === 0 ? <p className="text-sm text-slate-400 text-center py-6">Nothing to show yet.</p> : null}
       </div>
+
+      {requestType ? (
+        <RequestToPostModal
+          initialType={requestType}
+          onClose={() => setRequestType(null)}
+          onSubmit={submitRequest}
+        />
+      ) : null}
+
+      {toast ? (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-sm font-medium px-4 py-2.5 rounded-lg shadow-lg">
+          {toast}
+        </div>
+      ) : null}
     </DashboardCard>
   );
 }

@@ -154,10 +154,20 @@ export default function InboxPage() {
     (i) => i.kind === 'action' && !archivedIds.includes(i.id),
   ).length;
 
+  const unreadVisibleCount = visibleItems.filter((i) => !readIds.includes(i.id)).length;
+
+  const markAllRead = () => {
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      visibleItems.forEach((i) => next.add(i.id));
+      return Array.from(next);
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 font-['Inter']">
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-8">
-        <div className="flex gap-8 overflow-x-auto">
+    <div className="flex h-full flex-col bg-slate-50 font-['Inter']">
+      <div className="shrink-0 bg-white border-b border-slate-200 px-4 sm:px-8">
+        <div className="flex gap-8 overflow-x-auto overflow-y-hidden">
           {tabs.map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -171,7 +181,7 @@ export default function InboxPage() {
                 {tab.label}
                 {tab.id === 'action' ? ` (${takeActionCount})` : ''}
                 {active ? (
-                  <span className="absolute -bottom-px left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-blue-600" />
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px] border-b-blue-600" />
                 ) : null}
               </button>
             );
@@ -179,9 +189,23 @@ export default function InboxPage() {
         </div>
       </div>
 
-      <div className="flex h-[calc(100vh-49px)]">
+      <div className="flex flex-1 min-h-0">
         {/* List */}
         <div className="w-full sm:w-96 bg-white border-r border-slate-200 overflow-y-auto shrink-0">
+          {activeTab !== 'archive' && visibleItems.length > 0 ? (
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100">
+              <span className="text-xs text-slate-500">
+                {unreadVisibleCount > 0 ? `${unreadVisibleCount} unread` : 'All read'}
+              </span>
+              <button
+                onClick={markAllRead}
+                disabled={unreadVisibleCount === 0}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:text-slate-300 disabled:cursor-not-allowed transition-colors"
+              >
+                Mark all as read
+              </button>
+            </div>
+          ) : null}
           {visibleItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-16 px-6">
               <MailIcon className="w-8 h-8 text-slate-300 mb-3" />
