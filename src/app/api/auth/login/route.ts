@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { BACKEND_API_URL } from '@/lib/api/backend';
+import { setAuthCookies } from '@/lib/api/proxy';
 
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
 
-    // Forward to backend API
-    const response = await fetch('http://localhost:3000/api/v1/auth/login', {
+    const response = await fetch(`${BACKEND_API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -17,34 +18,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data, { status: response.status });
     }
 
-    // Set httpOnly cookie with access token
     const resp = NextResponse.json({
       success: data.success,
       data: {
-        accessToken: data.data.accessToken,
-        refreshToken: data.data.refreshToken,
         user: {
           id: data.data.user.id,
           email: data.data.user.email,
           firstName: data.data.user.firstName,
           lastName: data.data.user.lastName,
-          role: 'employee', // Will be fetched from /me endpoint
+          role: 'employee', // real role/permissions come from /api/auth/me
           permissions: [],
         },
       },
     });
 
-    resp.cookies.set({
-      name: 'accessToken',
-      value: data.data.accessToken,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 15 * 60, // 15 minutes
-    });
+    // httpOnly cookies: access token (15m) + rotating refresh token (7d).
+    setAuthCookies(resp, data.data.accessToken, data.data.refreshToken);
 
     return resp;
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: { message: 'Login failed' } },
       { status: 500 }

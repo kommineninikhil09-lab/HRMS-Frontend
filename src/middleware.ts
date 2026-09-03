@@ -1,33 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('accessToken')?.value;
+  // The refresh token (7d) is the durable session marker; the access token
+  // cookie (15m) comes and goes and is refreshed by the API route handlers.
+  const hasSession = Boolean(request.cookies.get('refreshToken')?.value);
   const pathname = request.nextUrl.pathname;
 
-  // Public routes that don't require authentication
   const publicRoutes = ['/login'];
 
-  // Allow access to public routes without token
   if (publicRoutes.includes(pathname)) {
-    // If already authenticated and on login page, redirect to home
-    if (token && pathname === '/login') {
+    if (hasSession && pathname === '/login') {
       return NextResponse.redirect(new URL('/', request.url));
     }
     return NextResponse.next();
   }
 
-  // Allow access to API routes (they handle auth themselves)
+  // API routes handle auth (and token refresh) themselves.
   if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  // Allow root path for both authenticated and unauthenticated
+  // Root is reachable signed-in or not.
   if (pathname === '/') {
     return NextResponse.next();
   }
 
-  // Redirect to login if accessing protected routes without token
-  if (!token) {
+  if (!hasSession) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 

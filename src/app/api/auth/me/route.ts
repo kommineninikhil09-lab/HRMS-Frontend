@@ -1,65 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyToBackend, setAuthCookies, clearAuthCookies } from '@/lib/api/proxy';
+
+const roleMapping: Record<string, string> = {
+  admin: 'admin',
+  Admin: 'admin',
+  ADMIN: 'admin',
+  manager: 'manager',
+  Manager: 'manager',
+  MANAGER: 'manager',
+  'hr manager': 'manager',
+  'HR Manager': 'manager',
+  HR_MANAGER: 'manager',
+  employee: 'employee',
+  Employee: 'employee',
+  EMPLOYEE: 'employee',
+};
 
 export async function GET(req: NextRequest) {
   try {
-    const token = req.cookies.get('accessToken')?.value;
+    const { status, body, rotated, sessionExpired } = await proxyToBackend(
+      req,
+      '/users/me'
+    );
 
-    if (!token) {
-      return NextResponse.json(
+    if (sessionExpired || status === 401) {
+      const resp = NextResponse.json(
         { success: false, error: { message: 'Unauthorized' } },
         { status: 401 }
       );
+      clearAuthCookies(resp);
+      return resp;
     }
 
-    // Forward to backend API with token
-    const response = await fetch('http://localhost:3000/api/v1/users/me', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+    if (status < 200 || status >= 300 || !body?.data) {
+      return NextResponse.json(
+        body ?? { success: false, error: { message: 'Failed to get user' } },
+        { status: status || 502 }
+      );
+    }
+
+    const u = body.data;
+    const backendRole = u.roles?.[0]?.name || 'employee';
+    const role =
+      roleMapping[backendRole] ||
+      backendRole.toLowerCase().replace(/\s+/g, '').replace(/^hr/, '') ||
+      'employee';
+
+    const resp = NextResponse.json({
+      success: true,
+      data: {
+        id: u.id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        role,
+        permissions: u.permissions || [],
       },
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+    if (rotated) {
+      setAuthCookies(resp, rotated.accessToken, rotated.refreshToken);
     }
 
-    // Transform backend response to frontend schema
-    // Normalize role name: map backend roles to frontend roles
-    const backendRole = data.data.roles?.[0]?.name || 'employee';
-    const roleMapping: Record<string, string> = {
-      'admin': 'admin',
-      'Admin': 'admin',
-      'ADMIN': 'admin',
-      'manager': 'manager',
-      'Manager': 'manager',
-      'MANAGER': 'manager',
-      'hr manager': 'manager',
-      'HR Manager': 'manager',
-      'HR_MANAGER': 'manager',
-      'employee': 'employee',
-      'Employee': 'employee',
-      'EMPLOYEE': 'employee',
-    };
-
-    const normalizedRole = roleMapping[backendRole] || backendRole.toLowerCase().replace(/\s+/g, '').replace(/^hr/, '') || 'employee';
-
-    const transformedData = {
-      success: data.success,
-      data: {
-        id: data.data.id,
-        email: data.data.email,
-        firstName: data.data.firstName,
-        lastName: data.data.lastName,
-        role: normalizedRole,
-        permissions: data.data.permissions || [],
-      },
-    };
-
-    return NextResponse.json(transformedData);
-  } catch (error) {
+    return resp;
+  } catch {
     return NextResponse.json(
       { success: false, error: { message: 'Failed to get user' } },
       { status: 500 }

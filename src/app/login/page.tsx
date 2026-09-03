@@ -25,7 +25,7 @@ export default function LoginPage() {
       await login(email, password);
       router.push('/');
     } catch (err) {
-      setError('Invalid email or password');
+      setError(err instanceof Error && err.message ? err.message : 'Invalid email or password');
     }
   };
 
@@ -45,12 +45,17 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
           <p className="text-gray-600 text-sm mb-6">Sign in to your account to continue working</p>
 
-          {/* Sign in with Microsoft */}
-          <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors mb-6 font-medium text-gray-700">
+          {/* Sign in with Microsoft — Entra ID integration is not enabled yet */}
+          <button
+            type="button"
+            disabled
+            title="Microsoft sign-in is coming soon"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg mb-6 font-medium text-gray-400 cursor-not-allowed"
+          >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z" />
             </svg>
-            Sign in with Microsoft
+            Sign in with Microsoft (coming soon)
           </button>
 
           {/* Divider */}

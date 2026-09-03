@@ -1,43 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyToBackend, setAuthCookies, clearAuthCookies } from '@/lib/api/proxy';
 
 export async function PATCH(req: NextRequest) {
   try {
-    const token = req.cookies.get('accessToken')?.value;
+    const payload = await req.json();
 
-    if (!token) {
-      return NextResponse.json(
+    const { status, body, rotated, sessionExpired } = await proxyToBackend(
+      req,
+      '/users/me',
+      { method: 'PATCH', body: JSON.stringify(payload) }
+    );
+
+    if (sessionExpired || status === 401) {
+      const resp = NextResponse.json(
         { success: false, error: { message: 'Unauthorized' } },
         { status: 401 }
       );
+      clearAuthCookies(resp);
+      return resp;
     }
 
-    const body = await req.json();
-
-    const response = await fetch('http://localhost:3000/api/v1/users/me', {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+    if (status < 200 || status >= 300 || !body?.data) {
+      return NextResponse.json(
+        body ?? { success: false, error: { message: 'Failed to update profile' } },
+        { status: status || 502 }
+      );
     }
 
-    return NextResponse.json({
+    const resp = NextResponse.json({
       success: true,
       data: {
-        id: data.data.id,
-        email: data.data.email,
-        firstName: data.data.firstName,
-        lastName: data.data.lastName,
+        id: body.data.id,
+        email: body.data.email,
+        firstName: body.data.firstName,
+        lastName: body.data.lastName,
       },
     });
-  } catch (error) {
+
+    if (rotated) {
+      setAuthCookies(resp, rotated.accessToken, rotated.refreshToken);
+    }
+
+    return resp;
+  } catch {
     return NextResponse.json(
       { success: false, error: { message: 'Failed to update profile' } },
       { status: 500 }

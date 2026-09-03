@@ -1,28 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { BACKEND_API_URL } from '@/lib/api/backend';
+import { clearAuthCookies } from '@/lib/api/proxy';
 
 export async function POST(req: NextRequest) {
-  try {
-    const token = req.cookies.get('accessToken')?.value;
+  const refreshToken = req.cookies.get('refreshToken')?.value;
 
-    if (token) {
-      // Forward to backend API to revoke token
-      await fetch('http://localhost:3000/api/v1/auth/logout', {
+  if (refreshToken) {
+    // Revoke the refresh token server-side. Best-effort — never block logout on it.
+    try {
+      await fetch(`${BACKEND_API_URL}/auth/logout`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
       });
+    } catch {
+      // ignore
     }
-
-    // Clear httpOnly cookie
-    const resp = NextResponse.json({ success: true });
-    resp.cookies.delete('accessToken');
-    return resp;
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: { message: 'Logout failed' } },
-      { status: 500 }
-    );
   }
+
+  const resp = NextResponse.json({ success: true });
+  clearAuthCookies(resp);
+  return resp;
 }
