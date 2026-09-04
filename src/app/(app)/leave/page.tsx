@@ -1,30 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/useAuth';
+import {
+  leaveApi,
+  LeaveApiError,
+  formatDays,
+  formatDateShort,
+  formatDateRange,
+  statusLabel,
+  type HalfDayOption,
+  type LeaveBalanceItem,
+  type LeaveRequest,
+  type LeaveType,
+  type LeaveStatus,
+} from '@/lib/api/leave';
 
-/* ============================== chart primitives ============================== */
-
-function MiniBarChart({ data }: { data: { label: string; value: number }[] }) {
-  const peak = Math.max(1, ...data.map((d) => d.value));
-  return (
-    <div className="flex items-end justify-between gap-1.5 h-20">
-      {data.map((d) => (
-        <div key={d.label} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-          <div className="w-full flex items-end h-14">
-            <div
-              className={`w-full rounded-t ${d.value > 0 ? 'bg-violet-400' : 'bg-slate-100'}`}
-              style={{ height: d.value > 0 ? `${Math.max(10, (d.value / peak) * 100)}%` : '4px' }}
-              title={`${d.label}: ${d.value}`}
-            />
-          </div>
-          <span className="text-[10px] text-slate-400">{d.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+/* ============================== donut primitive ============================== */
 
 function Donut({
   segments,
@@ -88,82 +81,38 @@ function Donut({
   );
 }
 
-/* ============================== mock data ============================== */
+/* ============================== helpers ============================== */
 
-const leaveBalanceInit = [
-  { type: 'Casual Leave', total: 10, used: 2 },
-  { type: 'Sick Leave', total: 10, used: 1 },
-  { type: 'Paid Leave', total: 20, used: 5 },
-];
-
-interface LeaveHistoryEntry {
-  id: number;
-  dates: string;
-  days: number;
-  type: string;
-  status: 'Approved' | 'Pending' | 'Rejected';
-  requestedBy: string;
-  approvedBy?: string;
-  actionTakenOn: string;
-  note: string;
-  reason: string;
+/** Client-side working-day estimate (weekdays only). The backend is
+ *  authoritative and also excludes public holidays. */
+function estimateDays(from: string, to: string, dayType: HalfDayOption): number {
+  if (!from) return 0;
+  if (dayType !== 'full_day') return 0.5;
+  const end = to || from;
+  const start = new Date(`${from}T00:00:00`);
+  const stop = new Date(`${end}T00:00:00`);
+  if (start > stop) return 0;
+  let n = 0;
+  for (const d = new Date(start); d <= stop; d.setDate(d.getDate() + 1)) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) n += 1;
+  }
+  return n;
 }
 
-const SELF = '__self__';
-
-const initialLeaveHistory: LeaveHistoryEntry[] = [
-  {
-    id: 1,
-    dates: '17 Jul 2026',
-    days: 1,
-    type: 'Casual Leave',
-    status: 'Approved',
-    requestedBy: SELF,
-    approvedBy: 'Marcus Kinsley',
-    actionTakenOn: '18 Jul 2026',
-    note: 'Personal work',
-    reason: '',
-  },
-  {
-    id: 2,
-    dates: '16 Jul 2026',
-    days: 1,
-    type: 'Sick Leave',
-    status: 'Approved',
-    requestedBy: SELF,
-    approvedBy: 'Marcus Kinsley',
-    actionTakenOn: '17 Jul 2026',
-    note: 'Fever',
-    reason: '',
-  },
-  {
-    id: 3,
-    dates: '14 Jul – 15 Jul 2026',
-    days: 2,
-    type: 'Paid Leave',
-    status: 'Approved',
-    requestedBy: SELF,
-    approvedBy: 'Sarah Jenkins',
-    actionTakenOn: '10 Jul 2026',
-    note: 'Family function',
-    reason: '',
-  },
-  {
-    id: 4,
-    dates: '30 Jun 2026',
-    days: 1,
-    type: 'Casual Leave',
-    status: 'Rejected',
-    requestedBy: SELF,
-    approvedBy: 'Marcus Kinsley',
-    actionTakenOn: '28 Jun 2026',
-    note: 'Personal work',
-    reason: 'Insufficient project coverage',
-  },
-];
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+function statusPillClass(status: LeaveStatus): string {
+  switch (status) {
+    case 'approved':
+      return 'bg-emerald-100 text-emerald-700';
+    case 'submitted':
+      return 'bg-amber-100 text-amber-700';
+    case 'rejected':
+      return 'bg-red-100 text-red-700';
+    case 'cancelled':
+      return 'bg-slate-100 text-slate-600';
+    default:
+      return 'bg-slate-100 text-slate-600';
+  }
 }
 
 /* ============================== page ============================== */
@@ -171,136 +120,229 @@ function formatDate(iso: string) {
 export default function LeaveManagementPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const userName = user ? `${user.firstName} ${user.lastName}`.trim() : 'You';
+  const canApprove = user?.permissions.includes('leave.approve') ?? false;
 
+  const [types, setTypes] = useState<LeaveType[]>([]);
+  const [balances, setBalances] = useState<LeaveBalanceItem[]>([]);
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [approvals, setApprovals] = useState<LeaveRequest[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // apply modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [leaveTypeId, setLeaveTypeId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [leaveType, setLeaveType] = useState('');
-  const [note, setNote] = useState('');
-  const [notifyEmployee, setNotifyEmployee] = useState('');
+  const [dayType, setDayType] = useState<HalfDayOption>('full_day');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [leaveBalance, setLeaveBalance] = useState(leaveBalanceInit);
-  const [leaveHistory, setLeaveHistory] = useState(initialLeaveHistory);
-  const [pendingRequests, setPendingRequests] = useState<LeaveHistoryEntry[]>([]);
-
+  // history filters
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    if (searchParams.get('action') === 'apply') {
-      setIsModalOpen(true);
+  // per-row action state
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const refresh = useCallback(async () => {
+    const [t, b, r] = await Promise.all([
+      leaveApi.getTypes(),
+      leaveApi.getBalance(),
+      leaveApi.getRequests(),
+    ]);
+    setTypes(t);
+    setBalances(b);
+    setRequests(r);
+    if (canApprove) {
+      try {
+        setApprovals(await leaveApi.getPendingApprovals());
+      } catch {
+        setApprovals([]);
+      }
+    } else {
+      setApprovals([]);
     }
+  }, [canApprove]);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError(null);
+    refresh()
+      .catch((e) => {
+        if (active) setLoadError(e instanceof Error ? e.message : 'Failed to load leave data');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'apply') setIsModalOpen(true);
   }, [searchParams]);
 
-  const calculateDays = () => {
-    if (fromDate && toDate) {
-      const diff = Math.abs(new Date(toDate).getTime() - new Date(fromDate).getTime());
-      return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
-    }
-    return 0;
-  };
+  const typesById = useMemo(() => {
+    const m = new Map<string, LeaveType>();
+    types.forEach((t) => m.set(t.id, t));
+    return m;
+  }, [types]);
 
-  const leaveTypeOptions: Record<string, string> = {
-    casual: 'Casual Leave',
-    sick: 'Sick Leave',
-    paid: 'Paid Leave',
-    unpaid: 'Unpaid Leave',
-  };
+  const typeName = useCallback(
+    (req: LeaveRequest) => req.leave_type_name || typesById.get(req.leave_type_id)?.name || 'Leave',
+    [typesById],
+  );
 
-  const handleRequestLeave = () => {
-    if (!fromDate || !toDate || !leaveType) return;
-    const days = calculateDays();
-    const label = leaveTypeOptions[leaveType] || 'Leave';
+  const myPending = useMemo(
+    () => requests.filter((r) => r.status === 'submitted'),
+    [requests],
+  );
 
-    const entry: LeaveHistoryEntry = {
-      id: Date.now(),
-      dates: fromDate === toDate ? formatDate(fromDate) : `${formatDate(fromDate)} – ${formatDate(toDate)}`,
-      days,
-      type: label,
-      status: 'Pending',
-      requestedBy: userName,
-      actionTakenOn: '—',
-      note: note || '—',
-      reason: '',
-    };
+  const balanceRows = useMemo(
+    () =>
+      balances.map((b) => ({
+        ...b,
+        name: typesById.get(b.leave_type_id)?.name ?? 'Leave',
+      })),
+    [balances, typesById],
+  );
 
-    setPendingRequests((prev) => [entry, ...prev]);
-    setLeaveHistory((prev) => [entry, ...prev]);
+  const historyTypeNames = useMemo(() => {
+    const set = new Set<string>();
+    requests.forEach((r) => set.add(typeName(r)));
+    return Array.from(set).sort();
+  }, [requests, typeName]);
 
-    if (leaveType !== 'unpaid') {
-      setLeaveBalance((prev) =>
-        prev.map((b) => (b.type === label ? { ...b, used: b.used + days } : b)),
-      );
-    }
+  const filteredHistory = useMemo(
+    () =>
+      requests.filter((r) => {
+        if (filterType !== 'All' && typeName(r) !== filterType) return false;
+        if (filterStatus !== 'All' && statusLabel(r.status) !== filterStatus) return false;
+        if (search) {
+          const hay = `${typeName(r)} ${r.reason ?? ''} ${r.rejection_reason ?? ''}`.toLowerCase();
+          if (!hay.includes(search.toLowerCase())) return false;
+        }
+        return true;
+      }),
+    [requests, filterType, filterStatus, search, typeName],
+  );
 
-    setIsModalOpen(false);
+  const estimated = estimateDays(fromDate, toDate, dayType);
+  const isHalf = dayType !== 'full_day';
+  const effectiveTo = isHalf ? fromDate : toDate;
+
+  const resetForm = () => {
+    setLeaveTypeId('');
     setFromDate('');
     setToDate('');
-    setLeaveType('');
-    setNote('');
-    setNotifyEmployee('');
+    setDayType('full_day');
+    setReason('');
+    setSubmitError(null);
   };
 
-  const cancelPending = (id: number) => {
-    setPendingRequests((prev) => prev.filter((p) => p.id !== id));
-    setLeaveHistory((prev) => prev.filter((p) => p.id !== id));
+  const handleSubmit = async () => {
+    // "To" is optional for a full day — an empty "To" means a single-day leave.
+    if (!leaveTypeId || !fromDate) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const created = await leaveApi.createRequest({
+        leave_type_id: leaveTypeId,
+        start_date: fromDate,
+        end_date: effectiveTo || fromDate,
+        half_day_option: dayType,
+        reason: reason.trim() || undefined,
+      });
+      setIsModalOpen(false);
+      resetForm();
+      setActionError(null);
+      setActionMessage(
+        `Leave requested for ${formatDays(created.duration_days)} day(s) — ${statusLabel(created.status)}.`,
+      );
+      await refresh();
+    } catch (e) {
+      setSubmitError(e instanceof LeaveApiError ? e.message : 'Could not submit leave request');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const weeklyPattern = [
-    { label: 'Mon', value: 2 },
-    { label: 'Tue', value: 3 },
-    { label: 'Wed', value: 0 },
-    { label: 'Thu', value: 2 },
-    { label: 'Fri', value: 1 },
-    { label: 'Sat', value: 0 },
-    { label: 'Sun', value: 0 },
-  ];
-
-  const monthlyStats = [
-    { label: 'Jan', value: 0 },
-    { label: 'Feb', value: 1 },
-    { label: 'Mar', value: 0 },
-    { label: 'Apr', value: 0 },
-    { label: 'May', value: 0 },
-    { label: 'Jun', value: 3 },
-    { label: 'Jul', value: 4 },
-    { label: 'Aug', value: 1 },
-    { label: 'Sep', value: 0 },
-    { label: 'Oct', value: 0 },
-    { label: 'Nov', value: 0 },
-    { label: 'Dec', value: 0 },
-  ];
-
-  const consumedColors: Record<string, string> = {
-    'Casual Leave': '#3B82F6',
-    'Sick Leave': '#F59E0B',
-    'Paid Leave': '#10B981',
+  const handleCancel = async (id: string) => {
+    setCancellingId(id);
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      await leaveApi.cancelRequest(id);
+      setActionMessage('Leave request cancelled.');
+      await refresh();
+    } catch (e) {
+      setActionError(e instanceof LeaveApiError ? e.message : 'Could not cancel this request');
+    } finally {
+      setCancellingId(null);
+    }
   };
-  const consumedSegments = leaveBalance
-    .filter((b) => b.used > 0)
-    .map((b) => ({ value: b.used, color: consumedColors[b.type] || '#94A3B8' }));
 
-  const paidUsed = leaveBalance.find((b) => b.type === 'Paid Leave')?.used ?? 0;
-  const paidTotal = leaveBalance.find((b) => b.type === 'Paid Leave')?.total ?? 0;
-  const paidAvailable = Math.max(0, paidTotal - paidUsed - 6.5).toFixed(1);
+  const handleDecide = async (id: string, approve: boolean) => {
+    setDecidingId(id);
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      await leaveApi.decide(id, approve, approve ? undefined : rejectReason.trim());
+      setActionMessage(approve ? 'Leave approved.' : 'Leave rejected.');
+      setRejectingId(null);
+      setRejectReason('');
+      await refresh();
+    } catch (e) {
+      setActionError(e instanceof LeaveApiError ? e.message : 'Could not update this request');
+    } finally {
+      setDecidingId(null);
+    }
+  };
 
-  const filteredHistory = leaveHistory.filter((h) => {
-    if (filterType !== 'All' && h.type !== filterType) return false;
-    if (filterStatus !== 'All' && h.status !== filterStatus) return false;
-    if (search && !`${h.type} ${h.note}`.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-['Inter'] p-4 sm:p-8">
+        <div className="text-sm text-slate-500">Loading leave data…</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-['Inter'] p-4 sm:p-8">
+        <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-6 max-w-lg">
+          <p className="text-sm font-semibold text-red-700">Couldn&apos;t load leave data</p>
+          <p className="text-xs text-slate-500 mt-1">{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-['Inter']">
       <div className="p-4 sm:p-8 space-y-6">
-        {/* Pending leave requests */}
+        {/* Pending leave requests + actions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
           <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <h2 className="text-base font-bold text-slate-900 mb-3">Pending leave requests</h2>
-            {pendingRequests.length === 0 ? (
+            {myPending.length === 0 ? (
               <div className="flex items-center gap-3 py-2">
                 <span className="text-xl">🎉</span>
                 <div>
@@ -310,23 +352,26 @@ export default function LeaveManagementPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {pendingRequests.map((p) => (
+                {myPending.map((p) => (
                   <div key={p.id} className="flex items-center justify-between border border-slate-200 rounded-lg px-4 py-3">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">
-                        {p.type} &middot; {p.dates}
+                        {typeName(p)} &middot; {formatDateRange(p.start_date, p.end_date, p.half_day_option)}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">{p.days} day(s) &middot; {p.note}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {formatDays(p.duration_days)} day(s){p.reason ? ` · ${p.reason}` : ''}
+                      </p>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-[11px] font-semibold bg-amber-100 text-amber-700 rounded-full px-2.5 py-1">
                         Pending
                       </span>
                       <button
-                        onClick={() => cancelPending(p.id)}
-                        className="text-xs font-medium text-red-500 hover:text-red-600"
+                        onClick={() => handleCancel(p.id)}
+                        disabled={cancellingId === p.id}
+                        className="text-xs font-medium text-red-500 hover:text-red-600 disabled:opacity-50"
                       >
-                        Cancel
+                        {cancellingId === p.id ? 'Cancelling…' : 'Cancel'}
                       </button>
                     </div>
                   </div>
@@ -337,79 +382,117 @@ export default function LeaveManagementPage() {
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-3">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
               className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
             >
               Request Leave
             </button>
-            <button className="text-left text-sm font-medium text-blue-600 hover:text-blue-700">
-              Request Credit for Compensatory Off
-            </button>
-            <button className="text-left text-sm font-medium text-blue-600 hover:text-blue-700">
-              Leave Policy Explanation
-            </button>
+            {actionMessage ? <p className="text-xs font-medium text-emerald-600">{actionMessage}</p> : null}
+            {actionError ? <p className="text-xs font-medium text-red-600">{actionError}</p> : null}
           </div>
         </div>
 
-        {/* My Leave Stats */}
-        <div>
-          <h2 className="text-base font-bold text-slate-900 mb-4">My Leave Stats</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-base font-bold text-slate-900 mb-4">Weekly Pattern</h3>
-              <MiniBarChart data={weeklyPattern} />
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col items-center">
-              <h3 className="text-base font-bold text-slate-900 mb-4 self-start">Consumed Leave Types</h3>
-              <Donut segments={consumedSegments} centerLabel="Leave" centerSub="Types" />
-              <div className="flex flex-wrap gap-3 justify-center mt-4">
-                {leaveBalance
-                  .filter((b) => b.used > 0)
-                  .map((b) => (
-                    <span key={b.type} className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                      <span className="w-2 h-2 rounded-full" style={{ background: consumedColors[b.type] }} />
-                      {b.type}
-                    </span>
-                  ))}
+        {/* Approvals (managers/HR only) */}
+        {canApprove ? (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h2 className="text-base font-bold text-slate-900 mb-3">Approvals</h2>
+            {approvals.length === 0 ? (
+              <p className="text-sm text-slate-400">No leave requests awaiting your approval.</p>
+            ) : (
+              <div className="space-y-3">
+                {approvals.map((a) => (
+                  <div key={a.id} className="border border-slate-200 rounded-lg px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {a.employee_name || 'Employee'} — {typeName(a)}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {formatDateRange(a.start_date, a.end_date, a.half_day_option)} ·{' '}
+                          {formatDays(a.duration_days)} day(s){a.reason ? ` · ${a.reason}` : ''}
+                        </p>
+                      </div>
+                      {rejectingId === a.id ? null : (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleDecide(a.id, true)}
+                            disabled={decidingId === a.id}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRejectingId(a.id);
+                              setRejectReason('');
+                            }}
+                            disabled={decidingId === a.id}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-md border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {rejectingId === a.id ? (
+                      <div className="flex items-center gap-2 mt-3">
+                        <input
+                          type="text"
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          placeholder="Reason for rejection (required)"
+                          className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500/10"
+                        />
+                        <button
+                          onClick={() => handleDecide(a.id, false)}
+                          disabled={decidingId === a.id || rejectReason.trim().length === 0}
+                          className="text-xs font-semibold px-3 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          Confirm reject
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRejectingId(null);
+                            setRejectReason('');
+                          }}
+                          className="text-xs font-medium px-3 py-2 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-base font-bold text-slate-900 mb-4">Monthly Stats</h3>
-              <MiniBarChart data={monthlyStats} />
-            </div>
+            )}
           </div>
-        </div>
+        ) : null}
 
         {/* Leave Balances */}
         <div>
           <h2 className="text-base font-bold text-slate-900 mb-4">Leave Balances</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-            <LeaveBalanceCard title="4AT Declared Holiday" available="∞" consumed="0 day" quota="∞" segments={[]} />
-            <LeaveBalanceCard title="Comp Offs" available="0 day" consumed="0 day" quota="0 day" segments={[]} />
-            <LeaveBalanceCard
-              title="Paid Time Off"
-              available={`${paidAvailable} days`}
-              consumed="1 day"
-              quota="10.5 days"
-              accrued="4.5 days"
-              segments={[
-                { value: Number(paidAvailable), color: '#7C3AED' },
-                { value: 10.5 - Number(paidAvailable), color: '#E9D5FF' },
-              ]}
-            />
-            <LeaveBalanceCard
-              title="Unpaid Leave"
-              available="8 days"
-              consumed="4 days"
-              quota="12 days"
-              segments={[
-                { value: 8, color: '#F59E0B' },
-                { value: 4, color: '#FDE68A' },
-              ]}
-            />
-          </div>
+          {balanceRows.length === 0 ? (
+            <p className="text-sm text-slate-400">No leave balances have been set up for you yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+              {balanceRows.map((b) => (
+                <LeaveBalanceCard
+                  key={b.id}
+                  name={b.name}
+                  entitled={b.entitled}
+                  used={b.used}
+                  pending={b.pending}
+                  available={b.available}
+                />
+              ))}
+            </div>
+          )}
           <p className="text-xs text-slate-500 mt-4">
-            Other leave types available: <span className="font-medium text-slate-700">Maternity Leave, Optional Holiday</span>
+            Financial year {balances[0]?.financial_year ?? '—'} · weekends and mandatory public holidays don&apos;t consume
+            leave.
           </p>
         </div>
 
@@ -425,10 +508,9 @@ export default function LeaveManagementPage() {
               className="text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
             >
               <option>All</option>
-              <option>Casual Leave</option>
-              <option>Sick Leave</option>
-              <option>Paid Leave</option>
-              <option>Unpaid Leave</option>
+              {historyTypeNames.map((n) => (
+                <option key={n}>{n}</option>
+              ))}
             </select>
             <select
               value={filterStatus}
@@ -439,6 +521,7 @@ export default function LeaveManagementPage() {
               <option>Approved</option>
               <option>Pending</option>
               <option>Rejected</option>
+              <option>Cancelled</option>
             </select>
             <input
               type="text"
@@ -455,7 +538,10 @@ export default function LeaveManagementPage() {
                 <tr>
                   {['Leave Dates', 'Leave Type', 'Status', 'Requested By', 'Action Taken On', 'Leave Note', 'Reason'].map(
                     (h) => (
-                      <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase whitespace-nowrap">
+                      <th
+                        key={h}
+                        className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase whitespace-nowrap"
+                      >
                         {h}
                       </th>
                     ),
@@ -463,39 +549,42 @@ export default function LeaveManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredHistory.map((h) => (
-                  <tr key={h.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
-                      {h.dates}
-                      <div className="text-xs text-slate-400">{h.days} day(s)</div>
-                    </td>
-                    <td className="px-5 py-4 text-sm text-slate-700 whitespace-nowrap">{h.type}</td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                          h.status === 'Approved'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : h.status === 'Pending'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {h.status}
-                      </span>
-                      {h.approvedBy ? <div className="text-[11px] text-slate-400 mt-1">by {h.approvedBy}</div> : null}
-                    </td>
-                    <td className="px-5 py-4 text-sm text-slate-700 whitespace-nowrap">
-                      {h.requestedBy === SELF ? userName : h.requestedBy}
-                    </td>
-                    <td className="px-5 py-4 text-sm text-slate-500 whitespace-nowrap">{h.actionTakenOn}</td>
-                    <td className="px-5 py-4 text-sm text-slate-500">{h.note}</td>
-                    <td className="px-5 py-4 text-sm text-slate-500">{h.reason || '—'}</td>
-                  </tr>
-                ))}
+                {filteredHistory.map((h) => {
+                  const actionOn = h.approved_at ?? h.cancelled_at;
+                  return (
+                    <tr key={h.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
+                        {formatDateRange(h.start_date, h.end_date, h.half_day_option)}
+                        <div className="text-xs text-slate-400">{formatDays(h.duration_days)} day(s)</div>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700 whitespace-nowrap">{typeName(h)}</td>
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold ${statusPillClass(h.status)}`}
+                        >
+                          {statusLabel(h.status)}
+                        </span>
+                        {h.approver_name && (h.status === 'approved' || h.status === 'rejected') ? (
+                          <div className="text-[11px] text-slate-400 mt-1">by {h.approver_name}</div>
+                        ) : null}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700 whitespace-nowrap">
+                        {h.employee_name || 'You'}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-500 whitespace-nowrap">
+                        {actionOn ? formatDateShort(actionOn.slice(0, 10)) : '—'}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-500">{h.reason || '—'}</td>
+                      <td className="px-5 py-4 text-sm text-slate-500">{h.rejection_reason || '—'}</td>
+                    </tr>
+                  );
+                })}
                 {filteredHistory.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-400">
-                      No leave requests match your filters.
+                      {requests.length === 0
+                        ? 'No leave requests yet.'
+                        : 'No leave requests match your filters.'}
                     </td>
                   </tr>
                 ) : null}
@@ -510,78 +599,114 @@ export default function LeaveManagementPage() {
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-screen overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-900">Request Leave</h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Close"
+                >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <div className="p-6 space-y-6">
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">From</label>
-                      <input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
-                      <input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-lg">
-                      {calculateDays()} days
-                    </span>
-                  </div>
-                </div>
-
+              <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select type of leave you want to apply</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Leave type</label>
                   <select
-                    value={leaveType}
-                    onChange={(e) => setLeaveType(e.target.value)}
+                    value={leaveTypeId}
+                    onChange={(e) => setLeaveTypeId(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   >
                     <option value="">Select</option>
-                    <option value="casual">Casual Leave</option>
-                    <option value="sick">Sick Leave</option>
-                    <option value="paid">Paid Leave</option>
-                    <option value="unpaid">Unpaid Leave</option>
+                    {types.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Note</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Day type</label>
+                  <div className="flex gap-2">
+                    {(
+                      [
+                        ['full_day', 'Full day'],
+                        ['first_half', 'First half'],
+                        ['second_half', 'Second half'],
+                      ] as [HalfDayOption, string][]
+                    ).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setDayType(value);
+                          if (value !== 'full_day') setToDate('');
+                        }}
+                        className={`flex-1 text-xs font-semibold px-2 py-2 rounded-lg border transition-colors ${
+                          dayType === value
+                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                            : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{isHalf ? 'Date' : 'From'}</label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+                  <div className={isHalf ? 'opacity-40 pointer-events-none' : ''}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      To <span className="font-normal text-gray-400">(optional)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={isHalf ? fromDate : toDate}
+                      min={fromDate || undefined}
+                      onChange={(e) => setToDate(e.target.value)}
+                      disabled={isHalf}
+                      placeholder="Same as From"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-lg">
+                    ≈ {formatDays(estimated)} working day(s)
+                  </span>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Final duration is calculated by the server (public holidays excluded).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
                   <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Type here"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Optional"
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notify</label>
-                  <input
-                    type="text"
-                    value={notifyEmployee}
-                    onChange={(e) => setNotifyEmployee(e.target.value)}
-                    placeholder="Search employee"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                </div>
+                {submitError ? (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {submitError}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex gap-3 p-6 border-t border-gray-200">
@@ -592,11 +717,11 @@ export default function LeaveManagementPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleRequestLeave}
-                  disabled={!fromDate || !toDate || !leaveType}
+                  onClick={handleSubmit}
+                  disabled={submitting || !leaveTypeId || !fromDate}
                   className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
                 >
-                  Request
+                  {submitting ? 'Submitting…' : 'Request'}
                 </button>
               </div>
             </div>
@@ -607,51 +732,50 @@ export default function LeaveManagementPage() {
   );
 }
 
+/* ============================== balance card ============================== */
+
 function LeaveBalanceCard({
-  title,
+  name,
+  entitled,
+  used,
+  pending,
   available,
-  consumed,
-  quota,
-  accrued,
-  segments,
 }: {
-  title: string;
-  available: string;
-  consumed: string;
-  quota: string;
-  accrued?: string;
-  segments: { value: number; color: string }[];
+  name: string;
+  entitled: number;
+  used: number;
+  pending: number;
+  available: number;
 }) {
+  const consumed = used + pending;
+  const segments =
+    available > 0 || consumed > 0
+      ? [
+          { value: Math.max(0, available), color: '#7C3AED' },
+          { value: Math.max(0, consumed), color: '#E9D5FF' },
+        ]
+      : [];
+
+  const cell = (label: string, value: string, extra = '') => (
+    <div className={`px-3 py-3 ${extra}`}>
+      <p className="text-[10px] font-semibold text-slate-400 uppercase">{label}</p>
+      <p className="text-sm font-semibold text-slate-900 mt-0.5">{value}</p>
+    </div>
+  );
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 pt-5">
-        <h3 className="text-base font-bold text-slate-900">{title}</h3>
-        <button className="text-xs font-medium text-blue-600 hover:text-blue-700">View details</button>
+      <div className="px-5 pt-5">
+        <h3 className="text-base font-bold text-slate-900 truncate">{name}</h3>
       </div>
       <div className="flex items-center justify-center py-6">
-        <Donut segments={segments} size={104} thickness={12} centerLabel={available} centerSub="Available" />
+        <Donut segments={segments} size={104} thickness={12} centerLabel={formatDays(available)} centerSub="Available" />
       </div>
-      <div className={`grid ${accrued ? 'grid-cols-2' : 'grid-cols-2'} border-t border-slate-100 text-center`}>
-        <div className="px-3 py-3 border-r border-slate-100">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase">Available</p>
-          <p className="text-sm font-semibold text-slate-900 mt-0.5">{available}</p>
-        </div>
-        <div className="px-3 py-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase">Consumed</p>
-          <p className="text-sm font-semibold text-slate-900 mt-0.5">{consumed}</p>
-        </div>
-        <div className="px-3 py-3 border-r border-t border-slate-100">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase">{accrued ? 'Accrued So Far' : 'Annual Quota'}</p>
-          <p className="text-sm font-semibold text-slate-900 mt-0.5">{accrued || quota}</p>
-        </div>
-        {accrued ? (
-          <div className="px-3 py-3 border-t border-slate-100">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase">Annual Quota</p>
-            <p className="text-sm font-semibold text-slate-900 mt-0.5">{quota}</p>
-          </div>
-        ) : (
-          <div className="px-3 py-3 border-t border-slate-100" />
-        )}
+      <div className="grid grid-cols-2 border-t border-slate-100 text-center">
+        {cell('Used', formatDays(used), 'border-r border-slate-100')}
+        {cell('Pending', formatDays(pending))}
+        {cell('Available', formatDays(available), 'border-r border-t border-slate-100')}
+        {cell('Entitled', formatDays(entitled), 'border-t border-slate-100')}
       </div>
     </div>
   );
