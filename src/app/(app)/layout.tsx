@@ -28,12 +28,12 @@ import {
   FingerprintIcon,
 } from '@/components/icons';
 
-type RequiredRole = 'admin' | 'employee' | 'manager';
+type RequiredRole = 'employee' | 'admin' | 'superadmin';
 
 const roleLabels: Record<RequiredRole, string> = {
-  admin: 'HR Administrator',
-  manager: 'Manager',
   employee: 'Employee',
+  admin: 'Manager',
+  superadmin: 'HR Administrator',
 };
 
 function roleLabel(role?: string) {
@@ -51,17 +51,17 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['admin', 'employee', 'manager'] },
-  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['admin', 'employee', 'manager'] },
-  { id: 'attendance', label: 'Attendance', icon: CalendarCheckIcon, href: '/attendance', roles: ['admin', 'employee', 'manager'] },
-  { id: 'leave', label: 'Leave Management', icon: CalendarIcon, href: '/leave', roles: ['admin', 'employee', 'manager'] },
-  { id: 'timesheet', label: 'Timesheet', icon: TimerIcon, href: '/timesheet', roles: ['admin', 'employee', 'manager'] },
+  { id: 'home', label: 'Home', icon: HomeIcon, href: '/', roles: ['admin', 'employee', 'superadmin'] },
+  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 5, roles: ['admin', 'employee', 'superadmin'] },
+  { id: 'attendance', label: 'Attendance', icon: CalendarCheckIcon, href: '/attendance', roles: ['admin', 'employee', 'superadmin'] },
+  { id: 'leave', label: 'Leave Management', icon: CalendarIcon, href: '/leave', roles: ['admin', 'employee', 'superadmin'] },
+  { id: 'timesheet', label: 'Timesheet', icon: TimerIcon, href: '/timesheet', roles: ['admin', 'employee', 'superadmin'] },
   {
     id: 'finances',
     label: 'My Finances',
     icon: WalletIcon,
     href: '/payslips',
-    roles: ['admin', 'employee', 'manager'],
+    roles: ['admin', 'employee', 'superadmin'],
     children: [
       { label: 'Summary', href: '/payslips?tab=summary' },
       { label: 'My Pay', href: '/payslips?tab=pay' },
@@ -74,29 +74,29 @@ const navItems: NavItem[] = [
     label: 'Performance',
     icon: TrendingUpIcon,
     href: '/performance',
-    roles: ['admin', 'employee', 'manager'],
+    roles: ['admin', 'employee', 'superadmin'],
     children: [
       { label: 'Performance', href: '/performance' },
       { label: 'Learning', href: '/learning' },
       { label: 'Career', href: '/career' },
     ],
   },
-  { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['admin', 'employee', 'manager'] },
+  { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['admin', 'employee', 'superadmin'] },
   {
     id: 'org-all',
     label: 'Organisation',
     icon: GlobeIcon,
     href: '/org',
-    roles: ['admin', 'employee', 'manager'],
+    roles: ['admin', 'employee', 'superadmin'],
     children: [
       { label: 'Employee Directory', href: '/org?tab=directory' },
       { label: 'Organisation Chart', href: '/org?tab=chart' },
       { label: 'Organization Documents', href: '/org?tab=documents' },
     ],
   },
-  { id: 'org', label: 'Organization', icon: TeamIcon, href: '/employees', roles: ['admin'] },
-  { id: 'engage', label: 'Engage', icon: MessageCircleIcon, href: '/engage', roles: ['admin', 'employee', 'manager'] },
-  { id: 'apps', label: 'Apps', icon: GridIcon, href: '/apps', roles: ['admin', 'employee', 'manager'] },
+  { id: 'org', label: 'Organization', icon: TeamIcon, href: '/employees', roles: ['superadmin'] },
+  { id: 'engage', label: 'Engage', icon: MessageCircleIcon, href: '/engage', roles: ['admin', 'employee', 'superadmin'] },
+  { id: 'apps', label: 'Apps', icon: GridIcon, href: '/apps', roles: ['admin', 'employee', 'superadmin'] },
 ];
 
 const COLLAPSE_STORAGE_KEY = 'hrms-sidebar-collapsed';

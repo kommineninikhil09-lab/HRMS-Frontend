@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { BarChartIcon } from '@/components/icons';
 
 export default function ReportsPage() {
-  usePermission(['manager', 'admin']);
+  usePermission(['admin', 'superadmin']);
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Inter']">

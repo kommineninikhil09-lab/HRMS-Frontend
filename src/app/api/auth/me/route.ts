@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyToBackend, setAuthCookies, clearAuthCookies } from '@/lib/api/proxy';
 
+// The backend now guarantees exactly one primary role per user:
+// Employee | Admin | Super Admin.
 const roleMapping: Record<string, string> = {
-  admin: 'admin',
-  Admin: 'admin',
-  ADMIN: 'admin',
-  manager: 'manager',
-  Manager: 'manager',
-  MANAGER: 'manager',
-  'hr manager': 'manager',
-  'HR Manager': 'manager',
-  HR_MANAGER: 'manager',
   employee: 'employee',
-  Employee: 'employee',
-  EMPLOYEE: 'employee',
+  admin: 'admin',
+  'super admin': 'superadmin',
+  superadmin: 'superadmin',
 };
 
 export async function GET(req: NextRequest) {
@@ -40,11 +34,8 @@ export async function GET(req: NextRequest) {
     }
 
     const u = body.data;
-    const backendRole = u.roles?.[0]?.name || 'employee';
-    const role =
-      roleMapping[backendRole] ||
-      backendRole.toLowerCase().replace(/\s+/g, '').replace(/^hr/, '') ||
-      'employee';
+    const backendRole = (u.roles?.[0]?.name || 'employee').toLowerCase();
+    const role = roleMapping[backendRole] || 'employee';
 
     const resp = NextResponse.json({
       success: true,

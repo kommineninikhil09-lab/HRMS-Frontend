@@ -229,7 +229,10 @@ const logRangeOptions: { id: LogRangeMode; label: string }[] = [
 
 export default function AttendancePage() {
   return (
-    <div className="min-h-screen bg-slate-50 font-['Inter']">
+    // `min-h-full` (not `min-h-screen`): this page already renders inside the
+    // app layout's full-height `overflow-y-auto` container. `100vh` here stacks
+    // on top of the header + padding and creates a phantom scroll region.
+    <div className="min-h-full bg-slate-50 font-['Inter']">
       <div className="p-4 sm:p-8">
         <AttendanceTab />
       </div>

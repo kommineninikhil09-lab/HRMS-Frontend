@@ -33,9 +33,9 @@ const aboutTabs = [
 ];
 
 const roleLabel: Record<string, string> = {
-  admin: 'Administrator',
-  manager: 'HR Manager',
-  employee: 'Software Trainee',
+  employee: 'Employee',
+  admin: 'Manager',
+  superadmin: 'HR Administrator',
 };
 
 function Field({ label, value }: { label: string; value: string }) {

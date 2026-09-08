@@ -22,7 +22,8 @@ const employees = [
 ];
 
 export default function EmployeesPage() {
-  usePermission(['admin']);
+  // Organization-wide employee directory — Super Admin only.
+  usePermission(['superadmin']);
   const [selectedTab, setSelectedTab] = useState('employees');
 
   return (
