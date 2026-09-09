@@ -63,7 +63,8 @@ export async function GET(req: NextRequest) {
     }
 
     return resp;
-  } catch {
+  } catch (err) {
+    console.error('[api/auth/me] failed:', err);
     return NextResponse.json(
       { success: false, error: { message: 'Failed to get user' } },
       { status: 500 }

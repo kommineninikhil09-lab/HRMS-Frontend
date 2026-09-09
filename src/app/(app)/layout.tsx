@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
@@ -193,7 +194,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return (
       <div key={item.id} className="group/nav relative">
-        <a
+        <Link
           href={item.href}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors relative ${
             collapsed ? 'md:justify-center md:px-0' : ''
@@ -234,7 +235,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               />
             </button>
           ) : null}
-        </a>
+        </Link>
 
         {/* Collapsed-state tooltip */}
         {collapsed ? (
@@ -246,13 +247,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {hasChildren && expanded && !collapsed ? (
           <div className="mt-1 ml-8 space-y-0.5 border-l border-slate-700 pl-3">
             {item.children!.map((child) => (
-              <a
+              <Link
                 key={child.label}
                 href={child.href}
                 className="block px-2 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               >
                 {child.label}
-              </a>
+              </Link>
             ))}
           </div>
         ) : null}
