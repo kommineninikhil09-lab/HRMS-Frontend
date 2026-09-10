@@ -1,51 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DashboardCard } from './DashboardCard';
 import { RequestToPostModal, RequestType } from '@/components/engage/RequestToPostModal';
+import { useAuth } from '@/lib/auth/useAuth';
 
 interface Post {
-  id: number;
-  author: string;
-  role: string;
-  initials: string;
-  avatarColor: string;
-  time: string;
-  title: string;
-  text: string;
-  likes: number;
-  comments: number;
-  views: number;
+  id: string;
+  user_id: string;
+  content: string;
+  category: string;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
 }
 
-const posts: Post[] = [
-  {
-    id: 1,
-    author: 'HR Department',
-    role: 'Admin',
-    initials: 'HR',
-    avatarColor: 'from-blue-600 to-indigo-600',
-    time: '2 hours ago',
-    title: 'Celebrating Excellence!',
-    text: 'Huge congratulations to the team for successfully launching Project Phoenix! Your hard work and dedication have made this possible.',
-    likes: 34,
-    comments: 8,
-    views: 156,
-  },
-  {
-    id: 2,
-    author: 'IT Support',
-    role: 'Admin',
-    initials: 'IT',
-    avatarColor: 'from-slate-600 to-slate-800',
-    time: '5 hours ago',
-    title: 'Scheduled Maintenance',
-    text: 'Scheduled maintenance for the internal network will take place this Saturday from 12:00 AM to 04:00 AM. Expect intermittent connectivity issues.',
-    likes: 12,
-    comments: 3,
-    views: 89,
-  },
-];
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
 
 const requestTypeButtons: { type: RequestType; label: string; icon: React.ReactNode }[] = [
   {
@@ -78,13 +57,32 @@ const requestTypeButtons: { type: RequestType; label: string; icon: React.ReactN
 ];
 
 export function CompanyPostsWidget() {
-  const [bookmarked, setBookmarked] = useState<number[]>([]);
+  const { user } = useAuth();
+  const [feed, setFeed] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [bookmarked, setBookmarked] = useState<string[]>([]);
   const [requestType, setRequestType] = useState<RequestType | null>(null);
   const [toast, setToast] = useState('');
 
-  const feed = posts;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/community/posts?limit=5', { credentials: 'include' });
+        const body = await res.json();
+        if (!cancelled && res.ok && body?.success) setFeed(body.data);
+      } catch {
+        // Leave the widget empty on failure - dashboard tiles shouldn't crash the page.
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const toggleBookmark = (id: number) => {
+  const toggleBookmark = (id: string) => {
     setBookmarked((prev) => (prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]));
   };
 
@@ -133,52 +131,51 @@ export function CompanyPostsWidget() {
 
       {/* Feed */}
       <div className="space-y-4">
-        {feed.map((post, idx) => (
-          <div key={post.id} className={idx > 0 ? 'pt-4 border-t border-slate-100' : ''}>
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-9 h-9 rounded-full bg-gradient-to-br ${post.avatarColor} flex items-center justify-center text-white text-xs font-bold shrink-0`}
-                >
-                  {post.initials}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-900">{post.author}</span>
-                    <span className="text-[10px] font-medium text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">
-                      {post.role}
-                    </span>
+        {loading ? (
+          <p className="text-sm text-slate-400 text-center py-6">Loading…</p>
+        ) : feed.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-6">Nothing to show yet.</p>
+        ) : (
+          feed.map((post, idx) => {
+            const isMine = user && post.user_id === user.id;
+            return (
+              <div key={post.id} className={idx > 0 ? 'pt-4 border-t border-slate-100' : ''}>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      {isMine ? 'ME' : '—'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{isMine ? 'You' : 'A colleague'}</span>
+                        <span className="text-[10px] font-medium text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">
+                          {post.category}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-400">{relativeTime(post.created_at)}</span>
+                    </div>
                   </div>
-                  <span className="text-xs text-slate-400">{post.time}</span>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed mb-2.5">{post.content}</p>
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1">👍 {post.likes_count}</span>
+                    <span className="flex items-center gap-1">💬 {post.comments_count}</span>
+                  </div>
+                  <button
+                    onClick={() => toggleBookmark(post.id)}
+                    title="Bookmark"
+                    className={bookmarked.includes(post.id) ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17 3H7a2 2 0 00-2 2v16l7-3 7 3V5a2 2 0 00-2-2z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <button className="text-slate-400 hover:text-slate-600 px-1">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 2a2 2 0 100 4 2 2 0 000-4zm0 6a2 2 0 100 4 2 2 0 000-4z" />
-                </svg>
-              </button>
-            </div>
-            <p className="text-sm font-semibold text-slate-900 mb-1">{post.title}</p>
-            <p className="text-sm text-slate-600 leading-relaxed mb-2.5">{post.text}</p>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1">👍 {post.likes}</span>
-                <span className="flex items-center gap-1">💬 {post.comments}</span>
-                <span className="flex items-center gap-1">👁 {post.views}</span>
-              </div>
-              <button
-                onClick={() => toggleBookmark(post.id)}
-                title="Bookmark"
-                className={bookmarked.includes(post.id) ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17 3H7a2 2 0 00-2 2v16l7-3 7 3V5a2 2 0 00-2-2z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        ))}
-        {feed.length === 0 ? <p className="text-sm text-slate-400 text-center py-6">Nothing to show yet.</p> : null}
+            );
+          })
+        )}
       </div>
 
       {requestType ? (
