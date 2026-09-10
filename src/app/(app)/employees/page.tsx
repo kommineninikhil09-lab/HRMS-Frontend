@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePermission } from '@/lib/auth/usePermission';
 
 const SearchIcon = () => (
@@ -15,15 +15,88 @@ const DownloadIcon = () => (
   </svg>
 );
 
-const employees = [
-  { id: 1, name: 'Sarah Jenkins', email: 'sarah.jenkins@company.com', department: 'Design & UX', position: 'Senior Product Designer', location: 'New York HQ' },
-  { id: 2, name: 'Marcus Kinsley', email: 'm.kinsley@company.com', department: 'Engineering', position: 'VP of Engineering', location: 'London' },
-  { id: 3, name: 'David Chen', email: 'd.chen@company.com', department: 'Finance', position: 'Financial Analyst', location: 'New York HQ' },
-];
+interface Employee {
+  id: string;
+  employee_code: string;
+  first_name: string;
+  last_name: string;
+  work_email?: string;
+  department_id?: string;
+  designation_id?: string;
+  location_id?: string;
+  status: string;
+}
+
+interface NamedEntity {
+  id: string;
+  name: string;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  const body = await res.json();
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error?.message || `Request to ${url} failed`);
+  }
+  return body.data as T;
+}
+
+function toNameMap(entities: NamedEntity[]): Record<string, string> {
+  return Object.fromEntries(entities.map((e) => [e.id, e.name]));
+}
 
 export default function EmployeesPage() {
-  usePermission(['admin']);
+  const { hasAccess, isLoading: permissionLoading } = usePermission(['admin']);
   const [selectedTab, setSelectedTab] = useState('employees');
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Record<string, string>>({});
+  const [designations, setDesignations] = useState<Record<string, string>>({});
+  const [locations, setLocations] = useState<Record<string, string>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (permissionLoading || !hasAccess) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const [emps, depts, desigs, locs] = await Promise.all([
+          fetchJson<Employee[]>('/api/employees'),
+          fetchJson<NamedEntity[]>('/api/departments'),
+          fetchJson<NamedEntity[]>('/api/designations'),
+          fetchJson<NamedEntity[]>('/api/locations'),
+        ]);
+        if (cancelled) return;
+        setEmployees(emps);
+        setDepartments(toNameMap(depts));
+        setDesignations(toNameMap(desigs));
+        setLocations(toNameMap(locs));
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load employees');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [permissionLoading, hasAccess]);
+
+  const filteredEmployees = employees.filter((emp) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    const name = `${emp.first_name} ${emp.last_name}`.toLowerCase();
+    return (
+      name.includes(term) ||
+      emp.employee_code.toLowerCase().includes(term) ||
+      (emp.work_email ?? '').toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Inter']">
@@ -55,23 +128,47 @@ export default function EmployeesPage() {
             <div className="mb-6 flex items-center gap-3">
               <div className="flex-1 relative">
                 <SearchIcon />
-                <input type="text" placeholder="Search employees..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg" />
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+                />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {employees.map(emp => (
-                <div key={emp.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-shadow">
-                  <h3 className="font-bold text-gray-900 text-lg mb-1">{emp.name}</h3>
-                  <p className="text-purple-600 text-sm font-semibold mb-3">{emp.position}</p>
-                  <div className="space-y-2 text-sm">
-                    <p className="text-gray-600">{emp.department}</p>
-                    <p className="text-gray-500">{emp.location}</p>
-                    <p className="text-blue-600 hover:underline cursor-pointer">{emp.email}</p>
+            {isLoading && (
+              <p className="text-gray-500 text-sm">Loading employees...</p>
+            )}
+
+            {error && !isLoading && (
+              <p className="text-red-600 text-sm">{error}</p>
+            )}
+
+            {!isLoading && !error && filteredEmployees.length === 0 && (
+              <p className="text-gray-500 text-sm">No employees found.</p>
+            )}
+
+            {!isLoading && !error && filteredEmployees.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredEmployees.map(emp => (
+                  <div key={emp.id} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-shadow">
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">{emp.first_name} {emp.last_name}</h3>
+                    <p className="text-purple-600 text-sm font-semibold mb-3">
+                      {emp.designation_id ? designations[emp.designation_id] ?? '—' : '—'}
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <p className="text-gray-600">{emp.department_id ? departments[emp.department_id] ?? '—' : '—'}</p>
+                      <p className="text-gray-500">{emp.location_id ? locations[emp.location_id] ?? '—' : '—'}</p>
+                      {emp.work_email && (
+                        <p className="text-blue-600 hover:underline cursor-pointer">{emp.work_email}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </>
         )}
 
