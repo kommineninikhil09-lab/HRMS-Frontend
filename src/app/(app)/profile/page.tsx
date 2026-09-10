@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth/useAuth';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import {
@@ -37,6 +37,51 @@ const roleLabel: Record<string, string> = {
   admin: 'Manager',
   superadmin: 'HR Administrator',
 };
+
+interface EssProfile {
+  id: string;
+  employee_code: string;
+  first_name: string;
+  last_name: string;
+  work_email?: string;
+  personal_email?: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  department_id?: string;
+  designation_id?: string;
+  location_id?: string;
+  date_of_joining?: string;
+  status: string;
+  manager_id?: string;
+}
+
+interface NamedEntity {
+  id: string;
+  name: string;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  const body = await res.json();
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error?.message || `Request to ${url} failed`);
+  }
+  return body.data as T;
+}
+
+function toNameMap(entities: NamedEntity[]): Record<string, string> {
+  return Object.fromEntries(entities.map((e) => [e.id, e.name]));
+}
+
+function fmtDate(iso?: string): string {
+  if (!iso) return '—';
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -122,9 +167,77 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState(user?.firstName || '');
   const [justSaved, setJustSaved] = useState(false);
 
-  const handleSaveProfile = () => {
-    setJustSaved(true);
-    window.setTimeout(() => setJustSaved(false), 2500);
+  const [ess, setEss] = useState<EssProfile | null>(null);
+  const [essLoading, setEssLoading] = useState(true);
+  const [departments, setDepartments] = useState<Record<string, string>>({});
+  const [locations, setLocations] = useState<Record<string, string>>({});
+  const [designations, setDesignations] = useState<Record<string, string>>({});
+  const [managerName, setManagerName] = useState<string | null>(null);
+
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setEssLoading(true);
+        const [profile, depts, locs, desigs] = await Promise.all([
+          fetchJson<EssProfile>('/api/ess/profile'),
+          fetchJson<NamedEntity[]>('/api/departments'),
+          fetchJson<NamedEntity[]>('/api/locations'),
+          fetchJson<NamedEntity[]>('/api/designations'),
+        ]);
+        if (cancelled) return;
+        setEss(profile);
+        setDepartments(toNameMap(depts));
+        setLocations(toNameMap(locs));
+        setDesignations(toNameMap(desigs));
+        setDob(profile.dob ?? '');
+        setGender(profile.gender ?? '');
+
+        if (profile.manager_id) {
+          try {
+            const manager = await fetchJson<{ first_name: string; last_name: string }>(
+              `/api/employees/${profile.manager_id}`
+            );
+            if (!cancelled) setManagerName(`${manager.first_name} ${manager.last_name}`.trim());
+          } catch {
+            // Manager may be outside the viewer's own scope to look up directly — non-fatal.
+          }
+        }
+      } catch {
+        if (!cancelled) setEss(null);
+      } finally {
+        if (!cancelled) setEssLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await fetch('/api/ess/profile', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dob: dob || undefined, gender: gender || undefined }),
+      }).then((r) => r.json());
+      if (!updated?.success) throw new Error(updated?.error?.message || 'Failed to save');
+      setEss(updated.data);
+      setJustSaved(true);
+      window.setTimeout(() => setJustSaved(false), 2500);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -181,13 +294,10 @@ export default function ProfilePage() {
               <div className="pb-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{fullName}</h1>
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5">
-                    IN
-                  </span>
                 </div>
                 <p className="text-slate-500 flex items-center gap-1.5 mt-1 text-sm">
                   <BriefcaseIcon className="w-4 h-4" />
-                  {title}
+                  {(ess?.designation_id && designations[ess.designation_id]) || title}
                 </p>
               </div>
             </div>
@@ -214,35 +324,45 @@ export default function ProfilePage() {
               <MailIcon className="w-4 h-4 text-slate-400" />
               {user?.email || 'you@company.com'}
             </span>
-            <span className="flex items-center gap-2">
-              <PhoneIcon className="w-4 h-4 text-slate-400" />
-              +91 90000 00000
-            </span>
-            <span className="flex items-center gap-2">
-              <MapPinIcon className="w-4 h-4 text-slate-400" />
-              Hyderabad, India
-            </span>
-            <span className="flex items-center gap-2">
-              <IdCardIcon className="w-4 h-4 text-slate-400" />
-              EMP-0142
-            </span>
+            {ess?.phone ? (
+              <span className="flex items-center gap-2">
+                <PhoneIcon className="w-4 h-4 text-slate-400" />
+                {ess.phone}
+              </span>
+            ) : null}
+            {ess?.location_id && locations[ess.location_id] ? (
+              <span className="flex items-center gap-2">
+                <MapPinIcon className="w-4 h-4 text-slate-400" />
+                {locations[ess.location_id]}
+              </span>
+            ) : null}
+            {ess?.employee_code ? (
+              <span className="flex items-center gap-2">
+                <IdCardIcon className="w-4 h-4 text-slate-400" />
+                {ess.employee_code}
+              </span>
+            ) : null}
           </div>
 
           {/* Department / Reporting manager */}
           <div className="flex flex-wrap gap-x-16 gap-y-3 mt-5">
             <div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Department</p>
-              <p className="text-sm font-semibold text-slate-900 mt-1">Technology</p>
+              <p className="text-sm font-semibold text-slate-900 mt-1">
+                {(ess?.department_id && departments[ess.department_id]) || '—'}
+              </p>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Reporting Manager</p>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
-                  MK
+            {managerName ? (
+              <div>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Reporting Manager</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+                    {managerName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <p className="text-sm font-semibold text-blue-600">{managerName}</p>
                 </div>
-                <p className="text-sm font-semibold text-blue-600">Marcus Kinsley</p>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
 
@@ -371,18 +491,41 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-                  <Field label="Date of Birth" value="14 Oct 2000" />
-                  <Field label="Gender" value="Female" />
-                  <Field label="Marital Status" value="Single" />
-                  <Field label="Nationality" value="Indian" />
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      className="w-full px-3 py-2 text-sm font-medium text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Gender
+                    </label>
+                    <select
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      className="w-full px-3 py-2 text-sm font-medium text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+                    >
+                      <option value="">—</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 mt-5 pt-5 border-t border-slate-100">
                   <button
                     onClick={handleSaveProfile}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    disabled={saving || essLoading}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 transition-colors shadow-sm"
                   >
-                    Save
+                    {saving ? 'Saving…' : 'Save'}
                   </button>
                   {justSaved ? (
                     <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
@@ -390,14 +533,15 @@ export default function ProfilePage() {
                       Saved
                     </span>
                   ) : null}
+                  {saveError ? <span className="text-sm font-medium text-red-600">{saveError}</span> : null}
                 </div>
               </DashboardCard>
 
               <DashboardCard title="Contact Information">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                   <Field label="Work Email" value={user?.email || 'you@company.com'} />
-                  <Field label="Personal Email" value="you.personal@email.com" />
-                  <Field label="Phone Number" value="+91 90000 00000" />
+                  <Field label="Personal Email" value={ess?.personal_email || '—'} />
+                  <Field label="Phone Number" value={ess?.phone || '—'} />
                 </div>
               </DashboardCard>
 
@@ -438,12 +582,10 @@ export default function ProfilePage() {
             <div className="xl:col-span-2">
               <DashboardCard title="Work Information" icon={<BriefcaseIcon className="w-4 h-4" />}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-                  <Field label="Department" value="Technology" />
-                  <Field label="Business Unit" value="Core Platform" />
-                  <Field label="Date of Joining" value="Aug 17, 2022" />
-                  <Field label="Employment Type" value="Full-Time" />
-                  <Field label="Work Location" value="Hyderabad" />
-                  <Field label="Reporting Manager" value="Marcus Kinsley" />
+                  <Field label="Department" value={(ess?.department_id && departments[ess.department_id]) || '—'} />
+                  <Field label="Date of Joining" value={fmtDate(ess?.date_of_joining)} />
+                  <Field label="Work Location" value={(ess?.location_id && locations[ess.location_id]) || '—'} />
+                  <Field label="Reporting Manager" value={managerName || '—'} />
                 </div>
               </DashboardCard>
             </div>
