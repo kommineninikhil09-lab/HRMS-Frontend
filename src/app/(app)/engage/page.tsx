@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/lib/auth/useAuth';
 
 /* ------------------------------ icons ------------------------------ */
 
@@ -37,17 +38,16 @@ const TrophyIcon = () => (
 
 /* ------------------------------ data ------------------------------ */
 
-type Audience = 'Organization' | 'Engineering' | 'Design' | 'People Team';
-type FeedKind = 'announcement' | 'poll' | 'praise';
+type FeedKind = 'announcement' | 'poll' | 'praise' | 'post';
 
 interface BaseItem {
-  id: number;
+  id: string;
   kind: FeedKind;
   author: string;
   initials: string;
   avatar: string;
-  audience: Audience;
   time: string;
+  createdAt: string;
   likes: number;
   comments: number;
 }
@@ -56,14 +56,14 @@ interface AnnouncementItem extends BaseItem {
   kind: 'announcement';
   title: string;
   body: string;
-  pinned?: boolean;
 }
 
 interface PollItem extends BaseItem {
   kind: 'poll';
   question: string;
-  options: { label: string; votes: number }[];
+  options: { id: string; label: string; votes: number }[];
   closesOn: string;
+  closed: boolean;
 }
 
 interface PraiseItem extends BaseItem {
@@ -72,107 +72,95 @@ interface PraiseItem extends BaseItem {
   badge: string;
   badgeLabel: string;
   message: string;
-  project?: string;
 }
 
-type FeedItem = AnnouncementItem | PollItem | PraiseItem;
+interface PostItem extends BaseItem {
+  kind: 'post';
+  message: string;
+  category: string;
+}
 
-const feed: FeedItem[] = [
-  {
-    id: 1,
-    kind: 'announcement',
-    author: 'People Team',
-    initials: 'PT',
-    avatar: 'from-blue-600 to-indigo-600',
-    audience: 'Organization',
-    time: '2 hours ago',
-    likes: 42,
-    comments: 8,
-    title: 'Diwali holidays — office closed Oct 29–31',
-    body: 'The office will remain closed from Wednesday, Oct 29 through Friday, Oct 31 for Diwali. Payroll for October will be processed a day early on Oct 28. Wishing everyone a bright and safe festival season.',
-    pinned: true,
-  },
-  {
-    id: 2,
-    kind: 'poll',
-    author: 'People Team',
-    initials: 'PT',
-    avatar: 'from-blue-600 to-indigo-600',
-    audience: 'Organization',
-    time: '1 day ago',
-    likes: 11,
-    comments: 3,
-    question: 'Which week works best for the team offsite?',
-    options: [
-      { label: 'Week of Nov 10', votes: 12 },
-      { label: 'Week of Nov 17', votes: 25 },
-      { label: 'Week of Nov 24', votes: 8 },
-    ],
-    closesOn: 'Closes Nov 1',
-  },
-  {
-    id: 3,
-    kind: 'praise',
-    author: 'Priya Nair',
-    initials: 'PN',
-    avatar: 'from-rose-600 to-pink-600',
-    audience: 'Engineering',
-    time: '2 days ago',
-    likes: 30,
-    comments: 5,
-    recipient: 'Rahul Sharma',
-    badge: '🌟',
-    badgeLabel: 'Above & Beyond',
-    message: 'Rahul stayed back through the payroll cutover weekend and caught a rounding bug before it ever hit a payslip. Calm, thorough, and generous with his time.',
-    project: 'Payroll Revamp',
-  },
-  {
-    id: 4,
-    kind: 'announcement',
-    author: 'People Team',
-    initials: 'PT',
-    avatar: 'from-blue-600 to-indigo-600',
-    audience: 'Organization',
-    time: '1 week ago',
-    likes: 18,
-    comments: 12,
-    title: 'New health insurance provider from Nov 1',
-    body: 'We are moving to a new group health insurance provider with a higher sum insured and wider hospital network. Updated cards and the policy document will be available under My Finances before the switch.',
-  },
-  {
-    id: 5,
-    kind: 'poll',
-    author: 'People Team',
-    initials: 'PT',
-    avatar: 'from-blue-600 to-indigo-600',
-    audience: 'Organization',
-    time: '1 week ago',
-    likes: 6,
-    comments: 1,
-    question: 'Preferred format for the monthly town hall?',
-    options: [
-      { label: 'In-person', votes: 9 },
-      { label: 'Virtual', votes: 14 },
-      { label: 'Hybrid', votes: 31 },
-    ],
-    closesOn: 'Closed',
-  },
-  {
-    id: 6,
-    kind: 'praise',
-    author: 'Marcus Kinsley',
-    initials: 'MK',
-    avatar: 'from-emerald-600 to-teal-600',
-    audience: 'Design',
-    time: '2 weeks ago',
-    likes: 22,
-    comments: 4,
-    recipient: 'The QA Team',
-    badge: '🏆',
-    badgeLabel: 'Team Player',
-    message: 'Huge thanks to QA for turning around the regression pass in a single day so we could ship the release on schedule.',
-  },
-];
+type FeedItem = AnnouncementItem | PollItem | PraiseItem | PostItem;
+
+interface RawAnnouncement {
+  id: string;
+  title: string;
+  content?: string;
+  priority: string;
+  status: string;
+  published_at: string | null;
+  created_at: string;
+}
+
+interface RawPost {
+  id: string;
+  user_id: string;
+  content: string;
+  category: string;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+}
+
+interface RawPollOption {
+  id: string;
+  option_text: string;
+  vote_count: number;
+}
+
+interface RawPoll {
+  id: string;
+  user_id: string;
+  question: string;
+  status: string;
+  total_votes: number;
+  created_at: string;
+  options?: RawPollOption[];
+}
+
+interface RawPraise {
+  id: string;
+  from_user_id: string;
+  to_employee_id: string;
+  badge_type: string;
+  description: string;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+}
+
+const badgeLabels: Record<string, string> = {
+  top_performer: '🏆 Top Performer',
+  leadership_impact: '👑 Leadership Impact',
+  customer_hero: '🦸 Customer Hero',
+  above_beyond: '🌟 Above & Beyond',
+  team_player: '🤝 Team Player',
+  rockstar_rookie: '🚀 Rockstar Rookie',
+  legacy_builder: '🏛️ Legacy Builder',
+  all_day_everyday: '💪 All Day Everyday',
+};
+
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+  const months = Math.floor(days / 30);
+  return `${months} month${months === 1 ? '' : 's'} ago`;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  const body = await res.json();
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error?.message || `Request to ${url} failed`);
+  }
+  return body.data as T;
+}
 
 const filters = [
   { id: 'all', label: 'All' },
@@ -188,6 +176,7 @@ const kindMeta: Record<FeedKind, { label: string; icon: React.ReactNode; chip: s
   announcement: { label: 'Announcement', icon: <MegaphoneIcon />, chip: 'bg-blue-100 text-blue-700' },
   poll: { label: 'Poll', icon: <PollIcon />, chip: 'bg-violet-100 text-violet-700' },
   praise: { label: 'Praise', icon: <TrophyIcon />, chip: 'bg-amber-100 text-amber-700' },
+  post: { label: 'Post', icon: <CommentIcon />, chip: 'bg-slate-100 text-slate-600' },
 };
 
 type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
@@ -319,12 +308,16 @@ const media: MediaItem[] = [
 
 export default function EngagePage() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const [filter, setFilter] = useState<FilterId>('all');
   const [search, setSearch] = useState('');
-  const [audience, setAudience] = useState<'All' | Audience>('All');
 
-  const [likes, setLikes] = useState<Record<number, boolean>>({});
-  const [votes, setVotes] = useState<Record<number, number>>({ 5: 2 });
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
+
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [votedOption, setVotedOption] = useState<Record<string, string>>({});
 
   const [requests, setRequests] = useState<PostRequest[]>(initialRequests);
   const [showRequests, setShowRequests] = useState(false);
@@ -342,18 +335,187 @@ export default function EngagePage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setFeedLoading(true);
+        setFeedError(null);
+
+        const [announcements, posts, polls, praise] = await Promise.all([
+          fetchJson<RawAnnouncement[]>('/api/community/announcements/active?limit=20'),
+          fetchJson<RawPost[]>('/api/community/posts?limit=20'),
+          fetchJson<RawPoll[]>('/api/community/polls?limit=20'),
+          fetchJson<RawPraise[]>('/api/community/praise?limit=20'),
+        ]);
+
+        // List endpoints omit body content/poll options - fetch full detail
+        // per item for the two kinds that need it to render.
+        const [announcementDetails, pollDetails] = await Promise.all([
+          Promise.all(
+            announcements.map((a) =>
+              fetchJson<RawAnnouncement>(`/api/community/announcements/${a.id}`).catch(() => a)
+            )
+          ),
+          Promise.all(
+            polls.map((p) => fetchJson<RawPoll>(`/api/community/polls/${p.id}`).catch(() => p))
+          ),
+        ]);
+
+        // Resolve praise recipients to real names where the viewer's scope allows it.
+        const recipientIds = Array.from(new Set(praise.map((p) => p.to_employee_id)));
+        const recipientNames = new Map<string, string>();
+        await Promise.all(
+          recipientIds.map(async (id) => {
+            try {
+              const emp = await fetchJson<{ first_name: string; last_name: string }>(`/api/employees/${id}`);
+              recipientNames.set(id, `${emp.first_name} ${emp.last_name}`.trim());
+            } catch {
+              // Outside this viewer's management scope - fall back below.
+            }
+          })
+        );
+
+        const items: FeedItem[] = [
+          ...announcementDetails.map(
+            (a): AnnouncementItem => ({
+              id: a.id,
+              kind: 'announcement',
+              author: 'People Team',
+              initials: 'PT',
+              avatar: 'from-blue-600 to-indigo-600',
+              time: relativeTime(a.published_at ?? a.created_at),
+              createdAt: a.published_at ?? a.created_at,
+              likes: 0,
+              comments: 0,
+              title: a.title,
+              body: a.content ?? '',
+            })
+          ),
+          ...posts.map(
+            (p): PostItem => ({
+              id: p.id,
+              kind: 'post',
+              author: user && p.user_id === user.id ? 'You' : 'A colleague',
+              initials: user && p.user_id === user.id ? 'ME' : '—',
+              avatar: 'from-purple-600 to-fuchsia-600',
+              time: relativeTime(p.created_at),
+              createdAt: p.created_at,
+              likes: p.likes_count,
+              comments: p.comments_count,
+              message: p.content,
+              category: p.category,
+            })
+          ),
+          ...pollDetails.map((p): PollItem => {
+            const closed = p.status !== 'active';
+            return {
+              id: p.id,
+              kind: 'poll',
+              author: user && p.user_id === user.id ? 'You' : 'A colleague',
+              initials: user && p.user_id === user.id ? 'ME' : '—',
+              avatar: 'from-blue-600 to-indigo-600',
+              time: relativeTime(p.created_at),
+              createdAt: p.created_at,
+              likes: 0,
+              comments: 0,
+              question: p.question,
+              options: (p.options ?? []).map((o) => ({ id: o.id, label: o.option_text, votes: o.vote_count })),
+              closesOn: closed ? 'Closed' : 'Open',
+              closed,
+            };
+          }),
+          ...praise.map(
+            (pr): PraiseItem => ({
+              id: pr.id,
+              kind: 'praise',
+              author: user && pr.from_user_id === user.id ? 'You' : 'A colleague',
+              initials: user && pr.from_user_id === user.id ? 'ME' : '—',
+              avatar: 'from-emerald-600 to-teal-600',
+              time: relativeTime(pr.created_at),
+              createdAt: pr.created_at,
+              likes: pr.likes_count,
+              comments: pr.comments_count,
+              recipient: recipientNames.get(pr.to_employee_id) ?? '—',
+              badge: (badgeLabels[pr.badge_type] ?? pr.badge_type).split(' ')[0],
+              badgeLabel: (badgeLabels[pr.badge_type] ?? pr.badge_type).split(' ').slice(1).join(' '),
+              message: pr.description,
+            })
+          ),
+        ];
+
+        items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        if (!cancelled) setFeed(items);
+      } catch (e) {
+        if (!cancelled) setFeedError(e instanceof Error ? e.message : 'Failed to load feed');
+      } finally {
+        if (!cancelled) setFeedLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const isMedia = filter === 'media';
 
-  const toggleLike = (id: number) => setLikes((p) => ({ ...p, [id]: !p[id] }));
-  const castVote = (pollId: number, optionIndex: number) =>
-    setVotes((p) => (p[pollId] === undefined ? { ...p, [pollId]: optionIndex } : p));
+  const toggleLike = async (item: FeedItem) => {
+    const alreadyLiked = likedIds.has(item.id);
+    const path =
+      item.kind === 'post'
+        ? `/api/community/posts/${item.id}/like`
+        : item.kind === 'praise'
+          ? `/api/community/praise/${item.id}/like`
+          : null;
+    if (!path) return; // Announcements/polls have no like endpoint.
+
+    setLikedIds((prev) => {
+      const next = new Set(prev);
+      if (alreadyLiked) next.delete(item.id);
+      else next.add(item.id);
+      return next;
+    });
+
+    try {
+      const res = await fetch(path, { method: alreadyLiked ? 'DELETE' : 'POST', credentials: 'include' });
+      const body = await res.json();
+      if (res.ok && body?.success) {
+        setFeed((prev) =>
+          prev.map((f) => (f.id === item.id ? { ...f, likes: body.data.likes_count } : f))
+        );
+      }
+    } catch {
+      // Leave the optimistic toggle in place - a stale count is preferable to reverting silently.
+    }
+  };
+
+  const castVote = async (poll: PollItem, optionId: string) => {
+    if (poll.closed || votedOption[poll.id]) return;
+    setVotedOption((prev) => ({ ...prev, [poll.id]: optionId }));
+    try {
+      await fetch(`/api/community/polls/${poll.id}/vote`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poll_option_id: optionId }),
+      });
+      setFeed((prev) =>
+        prev.map((f) =>
+          f.id === poll.id && f.kind === 'poll'
+            ? { ...f, options: f.options.map((o) => (o.id === optionId ? { ...o, votes: o.votes + 1 } : o)) }
+            : f
+        )
+      );
+    } catch {
+      // Leave the optimistic vote in place.
+    }
+  };
 
   const visible = useMemo(() => {
     return feed.filter((item) => {
       if (filter === 'announcements' && item.kind !== 'announcement') return false;
       if (filter === 'polls' && item.kind !== 'poll') return false;
       if (filter === 'praise' && item.kind !== 'praise') return false;
-      if (audience !== 'All' && item.audience !== audience) return false;
       if (search.trim()) {
         const haystack = [
           item.author,
@@ -369,7 +531,7 @@ export default function EngagePage() {
       }
       return true;
     });
-  }, [filter, audience, search]);
+  }, [feed, filter, search]);
 
   const pendingCount = requests.filter((r) => r.status === 'Pending').length;
 
@@ -469,19 +631,7 @@ export default function EngagePage() {
                   <option key={a}>{a}</option>
                 ))}
               </select>
-            ) : (
-              <select
-                value={audience}
-                onChange={(e) => setAudience(e.target.value as 'All' | Audience)}
-                className="px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
-              >
-                <option value="All">All audiences</option>
-                <option value="Organization">Organization</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Design">Design</option>
-                <option value="People Team">People Team</option>
-              </select>
-            )}
+            ) : null}
           </div>
 
           {/* Media gallery */}
@@ -549,7 +699,15 @@ export default function EngagePage() {
 
           {/* Feed */}
           {!isMedia ? (
-            visible.length === 0 ? (
+            feedLoading ? (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm py-16 text-center">
+                <p className="text-sm text-gray-500">Loading…</p>
+              </div>
+            ) : feedError ? (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm py-16 text-center">
+                <p className="text-sm text-red-600">{feedError}</p>
+              </div>
+            ) : visible.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm py-16 text-center">
                 <p className="text-sm font-semibold text-slate-600">Nothing to show</p>
                 <p className="text-xs text-gray-400 mt-1">Try a different filter or search term.</p>
@@ -559,10 +717,10 @@ export default function EngagePage() {
                 <FeedCard
                   key={item.id}
                   item={item}
-                  liked={!!likes[item.id]}
-                  onLike={() => toggleLike(item.id)}
-                  votedIndex={votes[item.id]}
-                  onVote={(i) => castVote(item.id, i)}
+                  liked={likedIds.has(item.id)}
+                  onLike={() => toggleLike(item)}
+                  votedOptionId={item.kind === 'poll' ? votedOption[item.id] : undefined}
+                  onVote={(optionId) => item.kind === 'poll' && castVote(item, optionId)}
                 />
               ))
             )
@@ -753,17 +911,17 @@ function FeedCard({
   item,
   liked,
   onLike,
-  votedIndex,
+  votedOptionId,
   onVote,
 }: {
   item: FeedItem;
   liked: boolean;
   onLike: () => void;
-  votedIndex: number | undefined;
-  onVote: (index: number) => void;
+  votedOptionId: string | undefined;
+  onVote: (optionId: string) => void;
 }) {
   const meta = kindMeta[item.kind];
-  const likeCount = item.likes + (liked ? 1 : 0);
+  const likable = item.kind === 'post' || item.kind === 'praise';
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
@@ -780,13 +938,8 @@ function FeedCard({
               {meta.icon}
               {meta.label}
             </span>
-            {item.kind === 'announcement' && item.pinned ? (
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Pinned</span>
-            ) : null}
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {item.audience} · {item.time}
-          </p>
+          <p className="text-xs text-gray-500 mt-0.5">{item.time}</p>
         </div>
       </div>
 
@@ -798,7 +951,9 @@ function FeedCard({
           </>
         ) : null}
 
-        {item.kind === 'poll' ? <PollBody item={item} votedIndex={votedIndex} onVote={onVote} /> : null}
+        {item.kind === 'post' ? <p className="text-sm text-gray-700 leading-relaxed">{item.message}</p> : null}
+
+        {item.kind === 'poll' ? <PollBody item={item} votedOptionId={votedOptionId} onVote={onVote} /> : null}
 
         {item.kind === 'praise' ? (
           <>
@@ -811,60 +966,54 @@ function FeedCard({
               <span className="text-xs font-semibold text-amber-800">{item.badgeLabel}</span>
             </div>
             <p className="text-sm text-gray-600 mt-2.5 leading-relaxed">{item.message}</p>
-            {item.project ? (
-              <span className="inline-block mt-2 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                {item.project}
-              </span>
-            ) : null}
           </>
         ) : null}
       </div>
 
-      <div className="flex items-center gap-5 mt-4 pt-3 border-t border-gray-100">
-        <button
-          onClick={onLike}
-          className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
-            liked ? 'text-rose-600' : 'text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <HeartIcon filled={liked} />
-          {likeCount}
-        </button>
-        <button className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors">
-          <CommentIcon />
-          {item.comments}
-        </button>
-      </div>
+      {likable ? (
+        <div className="flex items-center gap-5 mt-4 pt-3 border-t border-gray-100">
+          <button
+            onClick={onLike}
+            className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
+              liked ? 'text-rose-600' : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <HeartIcon filled={liked} />
+            {item.likes}
+          </button>
+          <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+            <CommentIcon />
+            {item.comments}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function PollBody({
   item,
-  votedIndex,
+  votedOptionId,
   onVote,
 }: {
   item: PollItem;
-  votedIndex: number | undefined;
-  onVote: (index: number) => void;
+  votedOptionId: string | undefined;
+  onVote: (optionId: string) => void;
 }) {
-  const closed = item.closesOn.toLowerCase() === 'closed';
-  const hasVoted = votedIndex !== undefined || closed;
+  const hasVoted = votedOptionId !== undefined || item.closed;
   const baseTotal = item.options.reduce((s, o) => s + o.votes, 0);
-  const total = baseTotal + (votedIndex !== undefined ? 1 : 0);
 
   return (
     <>
       <h3 className="text-base font-bold text-slate-900">{item.question}</h3>
       <div className="mt-3 space-y-2">
-        {item.options.map((opt, i) => {
-          const count = opt.votes + (votedIndex === i ? 1 : 0);
-          const pct = total ? Math.round((count / total) * 100) : 0;
+        {item.options.map((opt) => {
+          const pct = baseTotal ? Math.round((opt.votes / baseTotal) * 100) : 0;
           if (!hasVoted) {
             return (
               <button
-                key={opt.label}
-                onClick={() => onVote(i)}
+                key={opt.id}
+                onClick={() => onVote(opt.id)}
                 className="w-full text-left text-sm font-medium text-slate-700 border border-gray-200 rounded-lg px-3 py-2 hover:border-purple-400 hover:bg-purple-50/50 transition-colors"
               >
                 {opt.label}
@@ -872,15 +1021,15 @@ function PollBody({
             );
           }
           return (
-            <div key={opt.label} className="relative border border-gray-200 rounded-lg px-3 py-2 overflow-hidden">
+            <div key={opt.id} className="relative border border-gray-200 rounded-lg px-3 py-2 overflow-hidden">
               <div
-                className={`absolute inset-y-0 left-0 ${votedIndex === i ? 'bg-purple-100' : 'bg-gray-100'}`}
+                className={`absolute inset-y-0 left-0 ${votedOptionId === opt.id ? 'bg-purple-100' : 'bg-gray-100'}`}
                 style={{ width: `${pct}%` }}
               />
               <div className="relative flex items-center justify-between text-sm">
-                <span className={`font-medium ${votedIndex === i ? 'text-purple-700' : 'text-slate-700'}`}>
+                <span className={`font-medium ${votedOptionId === opt.id ? 'text-purple-700' : 'text-slate-700'}`}>
                   {opt.label}
-                  {votedIndex === i ? ' · your vote' : ''}
+                  {votedOptionId === opt.id ? ' · your vote' : ''}
                 </span>
                 <span className="text-xs font-semibold text-slate-500">{pct}%</span>
               </div>
@@ -889,7 +1038,7 @@ function PollBody({
         })}
       </div>
       <p className="text-xs text-gray-500 mt-2">
-        {total} {total === 1 ? 'vote' : 'votes'} · {item.closesOn}
+        {baseTotal} {baseTotal === 1 ? 'vote' : 'votes'} · {item.closesOn}
       </p>
     </>
   );
