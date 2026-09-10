@@ -1,16 +1,15 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ClockIcon,
   HomeIcon,
   ChevronDownIcon,
-  CoffeeIcon,
   CheckCircleIcon,
   AlertTriangleIcon,
-  MessageCircleIcon,
 } from '@/components/icons';
+import { attendanceApi, type AttendanceDayView, type AttendanceSummary } from '@/lib/api/attendance';
 
 function AttendanceVisual({
   checkIn,
@@ -123,9 +122,9 @@ function AttendanceVisual({
   );
 }
 
-/* ============================== mock data & generators ============================== */
+/* ============================== data mapping ============================== */
 
-type DayStatus = 'present' | 'weekoff' | 'holiday' | 'regularized' | 'inprogress';
+type DayStatus = 'present' | 'weekoff' | 'holiday' | 'on_leave' | 'absent' | 'not_marked' | 'inprogress';
 
 interface AttendanceRow {
   date: Date;
@@ -133,9 +132,8 @@ interface AttendanceRow {
   checkIn?: string;
   checkOut?: string;
   effectiveMinutes?: number;
-  breakMinutes?: number;
-  grossMinutes?: number;
   arrival?: 'On Time' | 'Late';
+  note?: string;
 }
 
 function fmtHM(minutes?: number) {
@@ -163,58 +161,30 @@ function fmtClock(time24: string, use24h: boolean) {
   return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-function generateAttendanceRows(start: Date, end: Date): AttendanceRow[] {
-  const rows: AttendanceRow[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+// ISO timestamp (UTC) → local "HH:MM" 24h string, what AttendanceVisual expects.
+function isoToHM(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
-  const cursor = new Date(end);
-  cursor.setHours(0, 0, 0, 0);
-  const startDay = new Date(start);
-  startDay.setHours(0, 0, 0, 0);
+function toAttendanceRow(v: AttendanceDayView): AttendanceRow {
+  const date = new Date(`${v.attendance_date}T00:00:00`);
 
-  while (cursor >= startDay) {
-    const date = new Date(cursor);
-    const dow = date.getDay();
-    const day = date.getDate();
-    const isToday = date.getTime() === today.getTime();
+  if (v.status === 'weekend') return { date, status: 'weekoff' };
+  if (v.status === 'holiday') return { date, status: 'holiday', note: v.holiday_name ?? 'Holiday' };
+  if (v.status === 'on_leave') return { date, status: 'on_leave', note: v.leave_type_name ?? 'On Leave' };
+  if (v.status === 'absent') return { date, status: 'absent' };
+  if (v.status === 'not_marked') return { date, status: 'not_marked' };
 
-    if (dow === 0 || dow === 6) {
-      rows.push({ date, status: 'weekoff' });
-    } else if (isToday) {
-      rows.push({
-        date,
-        status: 'inprogress',
-        checkIn: '14:00',
-        effectiveMinutes: 56,
-        breakMinutes: 13,
-        grossMinutes: 69,
-        arrival: 'On Time',
-      });
-    } else {
-      // deterministic pseudo-variation from the day number
-      const lateOffset = day % 5 === 0 ? 22 : day % 3 === 0 ? 8 : 0;
-      const checkInMin = 9 * 60 + lateOffset;
-      const durationMin = 470 + ((day * 7) % 60);
-      const breakMin = 40 + ((day * 3) % 30);
-      const checkOutMin = checkInMin + durationMin;
-
-      rows.push({
-        date,
-        status: day % 11 === 0 ? 'regularized' : 'present',
-        checkIn: `${String(Math.floor(checkInMin / 60)).padStart(2, '0')}:${String(checkInMin % 60).padStart(2, '0')}`,
-        checkOut: `${String(Math.floor(checkOutMin / 60)).padStart(2, '0')}:${String(checkOutMin % 60).padStart(2, '0')}`,
-        effectiveMinutes: durationMin - breakMin,
-        breakMinutes: breakMin,
-        grossMinutes: durationMin,
-        arrival: lateOffset > 15 ? 'Late' : 'On Time',
-      });
-    }
-
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  return rows;
+  // present / work_from_home / half_day
+  return {
+    date,
+    status: v.check_out ? 'present' : 'inprogress',
+    checkIn: v.check_in ? isoToHM(v.check_in) : undefined,
+    checkOut: v.check_out ? isoToHM(v.check_out) : undefined,
+    effectiveMinutes: v.working_minutes ?? undefined,
+    arrival: v.late_minutes && v.late_minutes > 0 ? 'Late' : 'On Time',
+  };
 }
 
 type LogRangeMode = 'week' | 'month' | 'custom';
@@ -258,40 +228,152 @@ function AttendanceTab() {
   const [customTo, setCustomTo] = useState(() => toLocalISODate(new Date()));
   const [use24h, setUse24h] = useState(false);
 
+  const [today, setToday] = useState<AttendanceDayView | null>(null);
+  const [todayLoading, setTodayLoading] = useState(true);
+  const [actionPending, setActionPending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const [historyViews, setHistoryViews] = useState<AttendanceDayView[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  const [summary, setSummary] = useState<AttendanceSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const statsByPeriod: Record<string, { meHrs: string; meOnTime: number; teamHrs: string; teamOnTime: number }> = {
-    'This Week': { meHrs: '8h 12m', meOnTime: 80, teamHrs: '7h 40m', teamOnTime: 75 },
-    'Last Week': { meHrs: '5h 3m', meOnTime: 60, teamHrs: '6h 7m', teamOnTime: 70 },
-    'This Month': { meHrs: '7h 48m', meOnTime: 72, teamHrs: '7h 2m', teamOnTime: 68 },
+  const refreshToday = () => {
+    setTodayLoading(true);
+    attendanceApi
+      .getToday()
+      .then(setToday)
+      .catch(() => setToday(null))
+      .finally(() => setTodayLoading(false));
   };
-  const stats = statsByPeriod[statsPeriod];
 
-  const rows = useMemo(() => {
-    const today = new Date();
+  useEffect(refreshToday, []);
 
-    if (logRangeMode === 'week') {
-      const start = new Date();
-      start.setDate(today.getDate() - 6);
-      return generateAttendanceRows(start, today);
+  useEffect(() => {
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError(null);
+
+    const window =
+      logRangeMode === 'week'
+        ? (() => {
+            const to = toLocalISODate(new Date());
+            const from = toLocalISODate(new Date(Date.now() - 6 * 86400000));
+            return { from, to };
+          })()
+        : logRangeMode === 'month'
+          ? (() => {
+              const to = toLocalISODate(new Date());
+              const from = toLocalISODate(new Date(Date.now() - 29 * 86400000));
+              return { from, to };
+            })()
+          : customFrom && customTo && customFrom <= customTo
+            ? { from: customFrom, to: customTo }
+            : null;
+
+    if (!window) {
+      setHistoryViews([]);
+      setHistoryLoading(false);
+      return;
     }
 
-    if (logRangeMode === 'month') {
-      const start = new Date();
-      start.setDate(today.getDate() - 29);
-      return generateAttendanceRows(start, today);
-    }
+    attendanceApi
+      .getHistory(window)
+      .then((views) => {
+        if (!cancelled) setHistoryViews(views);
+      })
+      .catch((e) => {
+        if (!cancelled) setHistoryError(e instanceof Error ? e.message : 'Failed to load attendance');
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
 
-    // custom: whichever from/to range the user picked
-    if (!customFrom || !customTo) return [];
-    const start = new Date(`${customFrom}T00:00:00`);
-    const end = new Date(`${customTo}T00:00:00`);
-    if (end < start) return [];
-    return generateAttendanceRows(start, end);
+    return () => {
+      cancelled = true;
+    };
   }, [logRangeMode, customFrom, customTo]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSummaryLoading(true);
+
+    const now = new Date();
+    let from: Date;
+    let to: Date;
+    if (statsPeriod === 'This Week') {
+      const dow = (now.getDay() + 6) % 7; // Monday = 0
+      from = new Date(now);
+      from.setDate(now.getDate() - dow);
+      to = now;
+    } else if (statsPeriod === 'Last Week') {
+      const dow = (now.getDay() + 6) % 7;
+      to = new Date(now);
+      to.setDate(now.getDate() - dow - 1);
+      from = new Date(to);
+      from.setDate(to.getDate() - 6);
+    } else {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to = now;
+    }
+
+    attendanceApi
+      .getSummary({ from: toLocalISODate(from), to: toLocalISODate(to) })
+      .then((s) => {
+        if (!cancelled) setSummary(s);
+      })
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSummaryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [statsPeriod]);
+
+  const handleCheckIn = async () => {
+    setActionPending(true);
+    setActionError(null);
+    try {
+      await attendanceApi.checkIn();
+      refreshToday();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Check-in failed');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    setActionPending(true);
+    setActionError(null);
+    try {
+      await attendanceApi.checkOut();
+      refreshToday();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Check-out failed');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const rows = historyViews.map(toAttendanceRow);
+
+  const meHrs = summary ? fmtHM(summary.total_working_minutes) : '—';
+  const meOnTime =
+    summary && summary.present_days > 0
+      ? Math.round(((summary.present_days - summary.late_days) / summary.present_days) * 100)
+      : null;
 
   const fmtShortDate = (iso: string) =>
     new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -362,8 +444,10 @@ function AttendanceTab() {
                 Me
               </span>
             </span>
-            <span className="text-right text-lg font-bold text-slate-900">{stats.meHrs}</span>
-            <span className="text-right text-lg font-bold text-slate-900">{stats.meOnTime}%</span>
+            <span className="text-right text-lg font-bold text-slate-900">{summaryLoading ? '…' : meHrs}</span>
+            <span className="text-right text-lg font-bold text-slate-900">
+              {summaryLoading ? '…' : meOnTime !== null ? `${meOnTime}%` : '—'}
+            </span>
           </div>
 
           <div className="grid grid-cols-3 items-center py-3 border-t border-slate-100">
@@ -373,8 +457,8 @@ function AttendanceTab() {
               </span>
               My Team
             </span>
-            <span className="text-right text-lg font-bold text-slate-900">{stats.teamHrs}</span>
-            <span className="text-right text-lg font-bold text-slate-900">{stats.teamOnTime}%</span>
+            <span className="text-right text-lg font-bold text-slate-400">—</span>
+            <span className="text-right text-lg font-bold text-slate-400">—</span>
           </div>
         </div>
 
@@ -394,17 +478,20 @@ function AttendanceTab() {
             ))}
           </div>
 
-          <p className="text-xs text-slate-500 mb-2">Today (2:00 PM - 11:00 PM)</p>
-          <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden mb-3">
-            <div className="h-full w-[62%] bg-gradient-to-r from-teal-400 to-teal-500 rounded-full" />
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Duration: 9h 0m</span>
-            <span className="flex items-center gap-1">
-              <CoffeeIcon className="w-3.5 h-3.5" />
-              60 min
-            </span>
-          </div>
+          {today?.check_in ? (
+            <>
+              <p className="text-xs text-slate-500 mb-2">
+                Today ({isoToHM(today.check_in)}
+                {today.check_out ? ` - ${isoToHM(today.check_out)}` : ' - now'})
+              </p>
+              <AttendanceVisual checkIn={isoToHM(today.check_in)} checkOut={today.check_out ? isoToHM(today.check_out) : undefined} />
+              <div className="flex items-center justify-between text-xs text-slate-500 mt-3">
+                <span>Duration: {fmtHM(today.working_minutes ?? undefined)}</span>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-slate-500">Not checked in yet today.</p>
+          )}
         </div>
 
         {/* Actions */}
@@ -415,6 +502,26 @@ function AttendanceTab() {
             <span className="text-sm font-semibold text-slate-500 ml-1">{timeLabel.match(/AM|PM/)?.[0]}</span>
           </div>
           <p className="text-xs text-slate-500 mb-5">{todayLabel}</p>
+
+          {!todayLoading && (
+            <button
+              onClick={today?.check_in && !today.check_out ? handleCheckOut : handleCheckIn}
+              disabled={actionPending || Boolean(today?.check_in && today?.check_out)}
+              className="w-full mb-4 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {today?.check_in && today?.check_out
+                ? 'Checked out for today'
+                : today?.check_in
+                  ? actionPending
+                    ? 'Checking out…'
+                    : 'Check Out'
+                  : actionPending
+                    ? 'Checking in…'
+                    : 'Check In'}
+            </button>
+          )}
+          {actionError && <p className="text-xs text-red-600 mb-4">{actionError}</p>}
+
           <div className="space-y-3">
             <button
               onClick={() => router.push('/attendance/wfh')}
@@ -527,92 +634,92 @@ function AttendanceTab() {
               </div>
             </div>
 
-            <div className="overflow-x-auto overflow-y-visible">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-y border-slate-200">
-                  <tr>
-                    {['Date', 'Attendance Visual', 'Effective Hours', 'Break Taken', 'Gross Hours', 'Arrival', 'Log'].map(
-                      (h) => (
+            {historyLoading && <p className="px-5 pb-4 text-sm text-slate-500">Loading...</p>}
+            {historyError && !historyLoading && <p className="px-5 pb-4 text-sm text-red-600">{historyError}</p>}
+
+            {!historyLoading && !historyError && (
+              <div className="overflow-x-auto overflow-y-visible">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-y border-slate-200">
+                    <tr>
+                      {['Date', 'Attendance Visual', 'Effective Hours', 'Arrival', 'Log'].map((h) => (
                         <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase">
                           {h}
                         </th>
-                      ),
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {rows.map((row) => (
-                    <tr key={row.date.toISOString()} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
-                        {row.date.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short' })}
-                        {row.status === 'weekoff' ? (
-                          <span className="ml-2 text-[10px] font-semibold bg-slate-100 text-slate-500 rounded px-1.5 py-0.5">
-                            W-OFF
-                          </span>
-                        ) : null}
-                        {row.status === 'regularized' ? (
-                          <span className="ml-2 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">
-                            REG
-                          </span>
-                        ) : null}
-                      </td>
-                      {row.status === 'weekoff' ? (
-                        <td className="px-5 py-4 text-sm text-slate-400" colSpan={5}>
-                          Full day Weekly-off
-                        </td>
-                      ) : (
-                        <>
-                          <td className="px-5 py-4">
-                            <button
-                              onClick={() =>
-                                router.push(`/attendance/regularize?date=${toLocalISODate(row.date)}`)
-                              }
-                              title="Click to regularize this day"
-                              className="block w-full text-left cursor-pointer"
-                            >
-                              <AttendanceVisual
-                                checkIn={row.checkIn}
-                                checkOut={row.checkOut}
-                                breakMinutes={row.breakMinutes}
-                              />
-                            </button>
-                          </td>
-                          <td className="px-5 py-4 text-sm font-semibold text-slate-900">
-                            {fmtHM(row.effectiveMinutes)}
-                            {row.status === 'inprogress' ? ' +' : ''}
-                          </td>
-                          <td className="px-5 py-4 text-sm text-slate-600">{fmtHM(row.breakMinutes)}</td>
-                          <td className="px-5 py-4 text-sm text-slate-600">
-                            {fmtHM(row.grossMinutes)}
-                            {row.status === 'inprogress' ? ' +' : ''}
-                          </td>
-                          <td className="px-5 py-4">
-                            <span
-                              className={`inline-flex items-center gap-1 text-sm font-medium ${
-                                row.arrival === 'Late' ? 'text-amber-600' : 'text-slate-700'
-                              }`}
-                            >
-                              {row.arrival === 'Late' ? '⚠' : '✓'} {row.arrival}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            {row.status === 'inprogress' ? (
-                              <span className="text-amber-500" title="In progress">
-                                <AlertTriangleIcon className="w-4 h-4" />
-                              </span>
-                            ) : (
-                              <span className="text-emerald-500" title="Complete">
-                                <CheckCircleIcon className="w-4 h-4" />
-                              </span>
-                            )}
-                          </td>
-                        </>
-                      )}
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {rows.map((row) => {
+                      const badge: Record<string, { label: string; cls: string; text: string }> = {
+                        weekoff: { label: 'W-OFF', cls: 'bg-slate-100 text-slate-500', text: 'Full day Weekly-off' },
+                        holiday: { label: 'HOL', cls: 'bg-amber-100 text-amber-700', text: row.note ?? 'Holiday' },
+                        on_leave: { label: 'LEAVE', cls: 'bg-violet-100 text-violet-700', text: row.note ?? 'On Leave' },
+                        absent: { label: 'ABSENT', cls: 'bg-red-100 text-red-700', text: 'Absent' },
+                        not_marked: { label: 'PENDING', cls: 'bg-slate-100 text-slate-400', text: 'Not marked yet' },
+                      };
+                      const placeholder = badge[row.status];
+
+                      return (
+                        <tr key={row.date.toISOString()} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
+                            {row.date.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short' })}
+                            {placeholder ? (
+                              <span className={`ml-2 text-[10px] font-semibold rounded px-1.5 py-0.5 ${placeholder.cls}`}>
+                                {placeholder.label}
+                              </span>
+                            ) : null}
+                          </td>
+                          {placeholder ? (
+                            <td className="px-5 py-4 text-sm text-slate-400" colSpan={4}>
+                              {placeholder.text}
+                            </td>
+                          ) : (
+                            <>
+                              <td className="px-5 py-4">
+                                <button
+                                  onClick={() =>
+                                    router.push(`/attendance/regularize?date=${toLocalISODate(row.date)}`)
+                                  }
+                                  title="Click to regularize this day"
+                                  className="block w-full text-left cursor-pointer"
+                                >
+                                  <AttendanceVisual checkIn={row.checkIn} checkOut={row.checkOut} />
+                                </button>
+                              </td>
+                              <td className="px-5 py-4 text-sm font-semibold text-slate-900">
+                                {fmtHM(row.effectiveMinutes)}
+                                {row.status === 'inprogress' ? ' +' : ''}
+                              </td>
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`inline-flex items-center gap-1 text-sm font-medium ${
+                                    row.arrival === 'Late' ? 'text-amber-600' : 'text-slate-700'
+                                  }`}
+                                >
+                                  {row.arrival === 'Late' ? '⚠' : '✓'} {row.arrival}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4">
+                                {row.status === 'inprogress' ? (
+                                  <span className="text-amber-500" title="In progress">
+                                    <AlertTriangleIcon className="w-4 h-4" />
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-500" title="Complete">
+                                    <CheckCircleIcon className="w-4 h-4" />
+                                  </span>
+                                )}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         ) : null}
 
@@ -643,8 +750,12 @@ function MiniCalendar({ rows }: { rows: AttendanceRow[] }) {
         return 'bg-emerald-100 text-emerald-700';
       case 'inprogress':
         return 'bg-blue-100 text-blue-700';
-      case 'regularized':
+      case 'on_leave':
         return 'bg-violet-100 text-violet-700';
+      case 'holiday':
+        return 'bg-amber-100 text-amber-700';
+      case 'absent':
+        return 'bg-red-100 text-red-700';
       case 'weekoff':
         return 'bg-slate-100 text-slate-400';
       default:
@@ -680,48 +791,16 @@ function MiniCalendar({ rows }: { rows: AttendanceRow[] }) {
 }
 
 function AttendanceRequestsList({ rangeLabel }: { rangeLabel: string }) {
-  const regularizations = [
-    {
-      id: 1,
-      date: '29 Jul 2026',
-      note: '4AT Declared Work from Home',
-      reason: 'System Policy',
-      status: 'Approved',
-      lastActionBy: 'Marcus Kinsley',
-      lastActionOn: '03 Aug 2026',
-    },
-    {
-      id: 2,
-      date: '19 Aug 2026',
-      note: '4AT declared work from home',
-      reason: 'System Policy',
-      status: 'Approved',
-      lastActionBy: 'Marcus Kinsley',
-      lastActionOn: '20 Aug 2026',
-    },
-    {
-      id: 3,
-      date: '21 Aug 2026',
-      note: 'Feeling unwell and unable to commute to the office.',
-      reason: 'Health',
-      status: 'Approved',
-      lastActionBy: 'Marcus Kinsley',
-      lastActionOn: '21 Aug 2026',
-    },
-  ];
-
+  // No backend endpoint exists yet for WFH/on-duty or regularization request
+  // workflows (submit, approve, track) — both sections are honest empty
+  // states rather than fabricated sample data.
   return (
     <div className="p-5 space-y-5">
       {/* Work From Home / On Duty Requests */}
       <div className="border border-slate-200 rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4">
           <h3 className="text-base font-bold text-slate-900">Work From Home / On Duty Requests</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">{rangeLabel}</span>
-            <button className="text-slate-400 hover:text-slate-600" title="More">
-              &#8942;
-            </button>
-          </div>
+          <span className="text-xs text-slate-400">{rangeLabel}</span>
         </div>
         <div className="mx-5 mb-5 rounded-lg bg-blue-50 text-blue-700 text-sm px-4 py-3">
           No Work From Home / On Duty Requests Available.
@@ -732,79 +811,10 @@ function AttendanceRequestsList({ rangeLabel }: { rangeLabel: string }) {
       <div className="border border-slate-200 rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4">
           <h3 className="text-base font-bold text-slate-900">Regularization Requests</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">{rangeLabel}</span>
-            <button className="text-slate-400 hover:text-slate-600" title="More">
-              &#8942;
-            </button>
-          </div>
+          <span className="text-xs text-slate-400">{rangeLabel}</span>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-y border-slate-200">
-              <tr>
-                {[
-                  'Date',
-                  'Note',
-                  'Reason',
-                  'Status',
-                  'Last Action By',
-                  'Next Approver',
-                  'Log',
-                  'Actions',
-                ].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {regularizations.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
-                    <span className="flex items-center gap-1.5">
-                      {r.date}
-                      <span className="text-blue-500" title="Regularization">
-                        &#8599;
-                      </span>
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-slate-600 max-w-[220px]">{r.note}</td>
-                  <td className="px-4 py-4 text-sm text-slate-500 whitespace-nowrap">{r.reason}</td>
-                  <td className="px-4 py-4">
-                    <span className="text-[11px] font-semibold bg-emerald-100 text-emerald-700 rounded-full px-2.5 py-1">
-                      {r.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-slate-600 whitespace-nowrap">
-                    {r.lastActionBy}
-                    <div className="text-xs text-slate-400">on {r.lastActionOn}</div>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-slate-400 whitespace-nowrap">&mdash;</td>
-                  <td className="px-4 py-4 text-sm text-slate-500 whitespace-nowrap">NA</td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3 text-slate-400">
-                      <button className="hover:text-slate-600" title="Comments">
-                        <MessageCircleIcon className="w-4 h-4" />
-                      </button>
-                      <button className="hover:text-slate-600" title="More">
-                        &#8942;
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between px-5 py-3 text-xs text-slate-400 border-t border-slate-100">
-          <span>
-            1 to {regularizations.length} of {regularizations.length}
-          </span>
-          <span>Page 1 of 1</span>
+        <div className="mx-5 mb-5 rounded-lg bg-blue-50 text-blue-700 text-sm px-4 py-3">
+          No Regularization Requests Available.
         </div>
       </div>
     </div>
