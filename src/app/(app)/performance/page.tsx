@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
-const StarIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+const StarIcon = ({ className }: { className?: string }) => (
+  <svg className={className ?? 'w-5 h-5'} viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2l-2.81 6.63L2 9.24l5.46 4.73L5.82 21z" />
   </svg>
 );
@@ -15,59 +14,103 @@ const TrendingUpIcon = () => (
   </svg>
 );
 
-const reviews = [
-  {
-    id: 1,
-    reviewer: 'Sarah Jenkins',
-    role: 'Manager',
-    period: 'Q3 2026',
-    rating: 4.5,
-    feedback: 'Exceptional technical skills and great team collaboration. Continue working on communication clarity.',
-    status: 'completed',
-  },
-  {
-    id: 2,
-    reviewer: 'HR Department',
-    role: 'HR Lead',
-    period: 'Q2 2026',
-    rating: 4,
-    feedback: 'Strong performance this quarter. Great progress on your development goals.',
-    status: 'completed',
-  },
-];
+interface Appraisal {
+  id: string;
+  cycleId: string;
+  status: string;
+  appraisalType: string;
+  overallRating: string | null;
+  averageRating: string | null;
+  finalizedAt: string | null;
+}
 
-const goals = [
-  {
-    id: 1,
-    title: 'Complete Advanced TypeScript Course',
-    status: 'in_progress',
-    progress: 65,
-    dueDate: '2026-12-31',
-    owner: 'You',
-  },
-  {
-    id: 2,
-    title: 'Lead 2 Cross-functional Projects',
-    status: 'in_progress',
-    progress: 50,
-    dueDate: '2026-12-31',
-    owner: 'You',
-  },
-  {
-    id: 3,
-    title: 'Improve Code Review Quality',
-    status: 'in_progress',
-    progress: 80,
-    dueDate: '2026-12-31',
-    owner: 'You',
-  },
-];
+interface Goal {
+  id: string;
+  goalTitle: string;
+  status: string;
+  progressPercentage: string;
+  targetDate: string | null;
+}
+
+interface Cycle {
+  id: string;
+  name: string;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  const body = await res.json();
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error?.message || `Request to ${url} failed`);
+  }
+  return body.data as T;
+}
+
+const statusLabel = (status: string) =>
+  status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function PerformancePage() {
   const [activeTab, setActiveTab] = useState<'reviews' | 'goals' | 'feedback' | 'skills' | 'meetings'>('reviews');
   const [feedbackType, setFeedbackType] = useState<'give' | 'request'>('give');
-  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [showMeetingForm, setShowMeetingForm] = useState(false);
+
+  const [reviews, setReviews] = useState<Appraisal[]>([]);
+  const [cycles, setCycles] = useState<Record<string, string>>({});
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setReviewsLoading(true);
+        setReviewsError(null);
+        const [appraisals, cycleList] = await Promise.all([
+          fetchJson<Appraisal[]>('/api/performance/appraisals'),
+          fetchJson<Cycle[]>('/api/performance/cycles'),
+        ]);
+        if (cancelled) return;
+        setReviews(appraisals);
+        setCycles(Object.fromEntries(cycleList.map((c) => [c.id, c.name])));
+      } catch (e) {
+        if (!cancelled) setReviewsError(e instanceof Error ? e.message : 'Failed to load reviews');
+      } finally {
+        if (!cancelled) setReviewsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setGoalsLoading(true);
+        setGoalsError(null);
+        const data = await fetchJson<Goal[]>('/api/performance/goals');
+        if (!cancelled) setGoals(data);
+      } catch (e) {
+        if (!cancelled) setGoalsError(e instanceof Error ? e.message : 'Failed to load goals');
+      } finally {
+        if (!cancelled) setGoalsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeGoalsCount = goals.filter((g) => g.status !== 'completed' && g.status !== 'cancelled').length;
+  const latestRating = reviews
+    .map((r) => r.overallRating ?? r.averageRating)
+    .filter((v): v is string => v != null)
+    .map(Number)[0];
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Inter']">
@@ -79,22 +122,26 @@ export default function PerformancePage() {
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl border border-blue-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-blue-600 mb-3 text-lg"><StarIcon /></div>
             <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">Overall Rating</div>
-            <div className="text-4xl font-bold text-blue-700 mb-2">4.5/5</div>
+            <div className="text-4xl font-bold text-blue-700 mb-2">
+              {latestRating !== undefined ? `${latestRating}/5` : '—'}
+            </div>
             <div className="text-sm text-blue-600">Based on latest review</div>
           </div>
 
           <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-emerald-600 mb-3 text-lg"><TrendingUpIcon /></div>
             <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Active Goals</div>
-            <div className="text-4xl font-bold text-emerald-700 mb-2">3</div>
-            <div className="text-sm text-emerald-600">All on track</div>
+            <div className="text-4xl font-bold text-emerald-700 mb-2">{activeGoalsCount}</div>
+            <div className="text-sm text-emerald-600">
+              {activeGoalsCount === goals.length ? 'All on track' : `${goals.length - activeGoalsCount} completed`}
+            </div>
           </div>
 
           <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-purple-200 p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-purple-600 mb-3 text-lg"><StarIcon /></div>
             <div className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Next Review</div>
-            <div className="text-4xl font-bold text-purple-700 mb-2">Dec 15</div>
-            <div className="text-sm text-purple-600">Q4 performance review</div>
+            <div className="text-4xl font-bold text-purple-700 mb-2">—</div>
+            <div className="text-sm text-purple-600">Not yet scheduled</div>
           </div>
         </div>
 
@@ -124,95 +171,98 @@ export default function PerformancePage() {
         {/* Reviews Tab */}
         {activeTab === 'reviews' && (
           <div className="space-y-6">
-            {reviews.map((review) => (
-              <div key={review.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group relative">
-                {/* Heritage Accent */}
-                <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            {reviewsLoading && <p className="text-sm text-gray-500">Loading reviews...</p>}
+            {reviewsError && !reviewsLoading && <p className="text-sm text-red-600">{reviewsError}</p>}
+            {!reviewsLoading && !reviewsError && reviews.length === 0 && (
+              <p className="text-sm text-gray-500">No performance reviews yet.</p>
+            )}
 
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{review.period} Performance Review</h3>
-                      <p className="text-gray-600 mt-1">by {review.reviewer} • {review.role}</p>
+            {reviews.map((review) => {
+              const rawRating = review.overallRating ?? review.averageRating;
+              const hasRating = rawRating != null;
+              const rating = hasRating ? Number(rawRating) : 0;
+
+              return (
+                <div key={review.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group relative">
+                  {/* Heritage Accent */}
+                  <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">{cycles[review.cycleId] ?? 'Performance Review'}</h3>
+                        <p className="text-gray-600 mt-1">
+                          {review.appraisalType.charAt(0).toUpperCase() + review.appraisalType.slice(1)} review • {statusLabel(review.status)}
+                        </p>
+                      </div>
+                      {hasRating && (
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <StarIcon
+                              key={i}
+                              className={`w-5 h-5 ${i < Math.round(rating) ? 'text-amber-400' : 'text-gray-300'}`}
+                            />
+                          ))}
+                          <span className="ml-2 font-bold text-gray-900">{rating}</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <StarIcon
-                          key={i}
-                          className={`w-5 h-5 ${
-                            i < Math.floor(review.rating)
-                              ? 'text-amber-400'
-                              : i < review.rating
-                              ? 'text-amber-300'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                      <span className="ml-2 font-bold text-gray-900">{review.rating}</span>
-                    </div>
-                  </div>
-
-                  <p className="text-gray-700 leading-relaxed mb-4">{review.feedback}</p>
-
-                  <div className="flex gap-3">
-                    <button className="px-5 py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all">
-                      View Full Review
-                    </button>
-                    <button className="px-5 py-2.5 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all">
-                      Discuss with Manager
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {/* Goals Tab */}
         {activeTab === 'goals' && (
           <div className="space-y-6">
-            {goals.map((goal) => (
-              <div key={goal.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
+            {goalsLoading && <p className="text-sm text-gray-500">Loading goals...</p>}
+            {goalsError && !goalsLoading && <p className="text-sm text-red-600">{goalsError}</p>}
+            {!goalsLoading && !goalsError && goals.length === 0 && (
+              <p className="text-sm text-gray-500">No goals yet.</p>
+            )}
+
+            {goals.map((goal) => {
+              const progress = Math.round(Number(goal.progressPercentage) || 0);
+              return (
+                <div key={goal.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">{goal.goalTitle}</h3>
+                        {goal.targetDate && (
+                          <p className="text-sm text-gray-600 mt-1">Due: {new Date(goal.targetDate).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                      <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                        goal.status === 'completed'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : goal.status === 'cancelled'
+                          ? 'bg-gray-100 text-gray-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {statusLabel(goal.status)}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900">{goal.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">Due: {goal.dueDate}</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Progress</span>
+                        <span className="text-sm font-bold text-gray-900">{progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className="bg-gradient-to-r from-purple-600 to-blue-600 h-3 rounded-full transition-all"
+                          style={{ width: `${progress}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      goal.status === 'in_progress'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-emerald-100 text-emerald-700'
-                    }`}>
-                      {goal.status === 'in_progress' ? 'In Progress' : 'Completed'}
-                    </span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Progress</span>
-                      <span className="text-sm font-bold text-gray-900">{goal.progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 h-3 rounded-full transition-all"
-                        style={{ width: `${goal.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button className="px-5 py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-all text-sm">
-                      Update Progress
-                    </button>
-                    <button className="px-5 py-2.5 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all text-sm">
-                      Add Comment
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Add New Goal Button */}
             <button className="w-full p-6 border-2 border-dashed border-purple-300 rounded-xl hover:border-purple-600 hover:bg-purple-50 transition-all flex items-center justify-center gap-2 text-purple-600 font-semibold">
