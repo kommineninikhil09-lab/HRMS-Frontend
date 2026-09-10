@@ -2,7 +2,7 @@ import { useAuth } from './useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export type RequiredRole = 'admin' | 'manager' | 'employee';
+export type RequiredRole = 'employee' | 'admin' | 'superadmin';
 
 export function usePermission(requiredRoles: RequiredRole[]) {
   const { user, isLoading } = useAuth();

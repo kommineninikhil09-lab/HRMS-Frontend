@@ -46,7 +46,8 @@ function toNameMap(entities: NamedEntity[]): Record<string, string> {
 }
 
 export default function EmployeesPage() {
-  const { hasAccess, isLoading: permissionLoading } = usePermission(['admin']);
+  // Organization-wide employee directory — Super Admin only.
+  const { hasAccess, isLoading: permissionLoading } = usePermission(['superadmin']);
   const [selectedTab, setSelectedTab] = useState('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Record<string, string>>({});

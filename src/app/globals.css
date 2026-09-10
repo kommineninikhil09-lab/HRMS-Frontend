@@ -8,6 +8,24 @@
   font-family: "Inter", sans-serif;
 }
 
+/*
+ * This is a full-height app shell: `(app)/layout.tsx` renders a
+ * `h-screen overflow-hidden` root and does all scrolling inside one inner
+ * `overflow-y-auto` pane. But `overflow: hidden` on that root only clips
+ * *painting* — it does not reliably stop very tall descendant content (long
+ * tables, etc.) from still enlarging the scrollable area of the `<html>`
+ * document itself, which then scrolls as a second, independent scrollbar
+ * that drags the *entire* app shell (sidebar included) off-screen into blank
+ * space beyond it. Locking html/body height + overflow removes that second
+ * scroll container outright, so the inner pane is the only thing that can
+ * ever scroll.
+ */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 .scrollbar-hide {
   scrollbar-width: none;
   -ms-overflow-style: none;

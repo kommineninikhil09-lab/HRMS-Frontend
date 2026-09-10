@@ -120,3 +120,68 @@ export async function proxyToBackend(
   const body = await res.json().catch(() => null);
   return { status: res.status, body, rotated };
 }
+
+type RouteContext = { params: Promise<{ path?: string[] }> };
+type RouteHandler = (req: NextRequest, ctx: RouteContext) => Promise<NextResponse>;
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+/**
+ * Build a set of catch-all route handlers that transparently forward
+ * `/<local prefix>/...` to `<prefix>/...` on the NestJS backend, carrying the
+ * session cookie, refreshing it on 401, and passing the backend's response
+ * envelope straight through. Use from `app/api/<prefix>/[...path]/route.ts`.
+ */
+export function createBackendProxyRoute(
+  backendPrefix: string,
+): Record<Method, RouteHandler> {
+  const make =
+    (method: Method): RouteHandler =>
+    async (req, ctx) => {
+      const { path = [] } = await ctx.params;
+      const backendPath = `/${backendPrefix}/${path.join('/')}${req.nextUrl.search}`;
+
+      const init: RequestInit = { method };
+      if (method !== 'GET') {
+        const text = await req.text();
+        if (text) init.body = text;
+      }
+
+      const { status, body, rotated, sessionExpired } = await proxyToBackend(
+        req,
+        backendPath,
+        init,
+      );
+
+      if (sessionExpired || status === 401) {
+        const resp = NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'SESSION_EXPIRED',
+              message: 'Your session has expired. Please sign in again.',
+            },
+          },
+          { status: 401 },
+        );
+        clearAuthCookies(resp);
+        return resp;
+      }
+
+      const resp = NextResponse.json(
+        body ?? { success: false, error: { message: 'Upstream error' } },
+        { status: status || 502 },
+      );
+      if (rotated) {
+        setAuthCookies(resp, rotated.accessToken, rotated.refreshToken);
+      }
+      return resp;
+    };
+
+  return {
+    GET: make('GET'),
+    POST: make('POST'),
+    PUT: make('PUT'),
+    PATCH: make('PATCH'),
+    DELETE: make('DELETE'),
+  };
+}
