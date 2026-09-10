@@ -6,41 +6,94 @@ import { useSearchParams } from 'next/navigation';
 /* ------------------------------ data ------------------------------ */
 
 interface Employee {
-  id: number;
+  id: string;
   name: string;
   initials: string;
   color: string;
   title: string;
   email: string;
-  managerId: number | null;
+  managerId: string | null;
   businessUnit: string;
   department: string;
   location: string;
   costCenter: string;
-  legalEntity: string;
 }
 
-const IN = 'Acme India Pvt Ltd';
-const LLP = 'Acme Consulting LLP';
+interface RawEmployee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  work_email?: string;
+  department_id?: string;
+  business_unit_id?: string;
+  location_id?: string;
+  cost_center_id?: string;
+  designation_id?: string;
+  manager_id?: string;
+}
 
-const employees: Employee[] = [
-  { id: 1, name: 'Ravi Menon', initials: 'RM', color: 'from-slate-600 to-slate-800', title: 'Managing Partner', email: 'ravi.menon@acme.com', managerId: null, businessUnit: 'Corporate', department: 'Management', location: 'Bengaluru', costCenter: 'CC-300 · G&A', legalEntity: LLP },
-  { id: 2, name: 'Priya Nair', initials: 'PN', color: 'from-rose-600 to-pink-600', title: 'Chief Executive Officer', email: 'priya.nair@acme.com', managerId: 1, businessUnit: 'Corporate', department: 'Management', location: 'Bengaluru', costCenter: 'CC-300 · G&A', legalEntity: IN },
-  { id: 3, name: 'Arjun Rao', initials: 'AR', color: 'from-blue-600 to-indigo-600', title: 'VP, Engineering', email: 'arjun.rao@acme.com', managerId: 2, businessUnit: 'Core Platform', department: 'Technology', location: 'Bengaluru', costCenter: 'CC-100 · Engineering', legalEntity: IN },
-  { id: 4, name: 'Meera Iyer', initials: 'MI', color: 'from-fuchsia-600 to-purple-600', title: 'Head of Design', email: 'meera.iyer@acme.com', managerId: 2, businessUnit: 'Core Platform', department: 'Design', location: 'Hyderabad', costCenter: 'CC-100 · Engineering', legalEntity: IN },
-  { id: 5, name: 'Karthik Reddy', initials: 'KR', color: 'from-emerald-600 to-teal-600', title: 'Financial Controller', email: 'karthik.reddy@acme.com', managerId: 2, businessUnit: 'Corporate', department: 'Finance', location: 'Mumbai', costCenter: 'CC-300 · G&A', legalEntity: IN },
-  { id: 6, name: 'Sana Kapoor', initials: 'SK', color: 'from-amber-600 to-orange-600', title: 'Head of People', email: 'sana.kapoor@acme.com', managerId: 2, businessUnit: 'Corporate', department: 'People', location: 'Bengaluru', costCenter: 'CC-300 · G&A', legalEntity: IN },
-  { id: 7, name: 'Rahul Sharma', initials: 'RS', color: 'from-cyan-600 to-blue-600', title: 'Engineering Manager', email: 'rahul.sharma@acme.com', managerId: 3, businessUnit: 'Core Platform', department: 'Technology', location: 'Bengaluru', costCenter: 'CC-100 · Engineering', legalEntity: IN },
-  { id: 8, name: 'Divya Menon', initials: 'DM', color: 'from-indigo-600 to-violet-600', title: 'Senior Software Engineer', email: 'divya.menon@acme.com', managerId: 7, businessUnit: 'Core Platform', department: 'Technology', location: 'Remote', costCenter: 'CC-100 · Engineering', legalEntity: IN },
-  { id: 9, name: 'Vikram Singh', initials: 'VS', color: 'from-teal-600 to-emerald-600', title: 'Software Engineer', email: 'vikram.singh@acme.com', managerId: 7, businessUnit: 'Core Platform', department: 'Technology', location: 'Hyderabad', costCenter: 'CC-100 · Engineering', legalEntity: IN },
-  { id: 10, name: 'Neha Gupta', initials: 'NG', color: 'from-pink-600 to-rose-600', title: 'Product Designer', email: 'neha.gupta@acme.com', managerId: 4, businessUnit: 'Core Platform', department: 'Design', location: 'Hyderabad', costCenter: 'CC-100 · Engineering', legalEntity: IN },
-  { id: 11, name: 'Aditya Bose', initials: 'AB', color: 'from-lime-600 to-green-600', title: 'Financial Analyst', email: 'aditya.bose@acme.com', managerId: 5, businessUnit: 'Corporate', department: 'Finance', location: 'Mumbai', costCenter: 'CC-300 · G&A', legalEntity: IN },
-  { id: 12, name: 'Farah Khan', initials: 'FK', color: 'from-orange-600 to-amber-600', title: 'Talent Acquisition Partner', email: 'farah.khan@acme.com', managerId: 6, businessUnit: 'Corporate', department: 'People', location: 'Bengaluru', costCenter: 'CC-300 · G&A', legalEntity: IN },
-  { id: 13, name: 'Marcus Kinsley', initials: 'MK', color: 'from-violet-600 to-fuchsia-600', title: 'Consulting Partner', email: 'marcus.kinsley@acme.com', managerId: 2, businessUnit: 'Consulting', department: 'Consulting', location: 'Remote', costCenter: 'CC-200 · GTM', legalEntity: LLP },
-  { id: 14, name: 'Lena Fernandes', initials: 'LF', color: 'from-sky-600 to-cyan-600', title: 'Senior Consultant', email: 'lena.fernandes@acme.com', managerId: 13, businessUnit: 'Consulting', department: 'Consulting', location: 'Mumbai', costCenter: 'CC-200 · GTM', legalEntity: LLP },
+interface NamedEntity {
+  id: string;
+  name: string;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  const body = await res.json();
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error?.message || `Request to ${url} failed`);
+  }
+  return body.data as T;
+}
+
+function toNameMap(entities: NamedEntity[]): Record<string, string> {
+  return Object.fromEntries(entities.map((e) => [e.id, e.name]));
+}
+
+const AVATAR_COLORS = [
+  'from-slate-600 to-slate-800',
+  'from-rose-600 to-pink-600',
+  'from-blue-600 to-indigo-600',
+  'from-fuchsia-600 to-purple-600',
+  'from-emerald-600 to-teal-600',
+  'from-amber-600 to-orange-600',
+  'from-cyan-600 to-blue-600',
+  'from-indigo-600 to-violet-600',
+  'from-teal-600 to-emerald-600',
+  'from-pink-600 to-rose-600',
 ];
 
-const filterKeys = ['businessUnit', 'department', 'location', 'costCenter', 'legalEntity'] as const;
+function colorFor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+function toEmployee(
+  e: RawEmployee,
+  departments: Record<string, string>,
+  businessUnits: Record<string, string>,
+  locations: Record<string, string>,
+  costCenters: Record<string, string>,
+  designations: Record<string, string>,
+): Employee {
+  const initials = `${e.first_name?.[0] ?? ''}${e.last_name?.[0] ?? ''}`.toUpperCase() || '—';
+  return {
+    id: e.id,
+    name: `${e.first_name} ${e.last_name}`.trim(),
+    initials,
+    color: colorFor(e.id),
+    title: (e.designation_id && designations[e.designation_id]) || '—',
+    email: e.work_email ?? '',
+    managerId: e.manager_id ?? null,
+    businessUnit: (e.business_unit_id && businessUnits[e.business_unit_id]) || '—',
+    department: (e.department_id && departments[e.department_id]) || '—',
+    location: (e.location_id && locations[e.location_id]) || '—',
+    costCenter: (e.cost_center_id && costCenters[e.cost_center_id]) || '—',
+  };
+}
+
+const filterKeys = ['businessUnit', 'department', 'location', 'costCenter'] as const;
 type FilterKey = (typeof filterKeys)[number];
 
 const filterMeta: Record<FilterKey, string> = {
@@ -48,10 +101,9 @@ const filterMeta: Record<FilterKey, string> = {
   department: 'Department',
   location: 'Location',
   costCenter: 'Cost Center',
-  legalEntity: 'Legal Entity',
 };
 
-const uniqueValues = (key: FilterKey) =>
+const uniqueValues = (employees: Employee[], key: FilterKey) =>
   Array.from(new Set(employees.map((e) => e[key]))).sort();
 
 /* ------------------------------ page ------------------------------ */
@@ -60,10 +112,50 @@ export default function OrgPage() {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<'directory' | 'chart' | 'documents'>('directory');
 
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const t = searchParams.get('tab');
     if (t === 'directory' || t === 'chart' || t === 'documents') setTab(t);
   }, [searchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [rawEmployees, departments, businessUnits, locations, costCenters, designations, profile] =
+          await Promise.all([
+            fetchJson<RawEmployee[]>('/api/employees'),
+            fetchJson<NamedEntity[]>('/api/departments'),
+            fetchJson<NamedEntity[]>('/api/business-units'),
+            fetchJson<NamedEntity[]>('/api/locations'),
+            fetchJson<NamedEntity[]>('/api/cost-centers'),
+            fetchJson<NamedEntity[]>('/api/designations'),
+            fetchJson<{ id: string }>('/api/ess/profile'),
+          ]);
+        if (cancelled) return;
+        const deptMap = toNameMap(departments);
+        const buMap = toNameMap(businessUnits);
+        const locMap = toNameMap(locations);
+        const ccMap = toNameMap(costCenters);
+        const desigMap = toNameMap(designations);
+        setEmployees(rawEmployees.map((e) => toEmployee(e, deptMap, buMap, locMap, ccMap, desigMap)));
+        setMeId(profile.id);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load organisation data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Inter']">
@@ -92,7 +184,17 @@ export default function OrgPage() {
       </div>
 
       <div className="p-4 sm:p-8">
-        {tab === 'directory' ? <Directory /> : tab === 'chart' ? <OrgChart /> : <Documents />}
+        {tab === 'documents' ? (
+          <Documents />
+        ) : loading ? (
+          <p className="text-sm text-gray-500">Loading...</p>
+        ) : error ? (
+          <p className="text-sm text-red-600">{error}</p>
+        ) : tab === 'directory' ? (
+          <Directory employees={employees} />
+        ) : (
+          <OrgChart employees={employees} meId={meId} />
+        )}
       </div>
     </div>
   );
@@ -283,13 +385,12 @@ function Documents() {
 
 /* ------------------------------ directory ------------------------------ */
 
-function Directory() {
+function Directory({ employees }: { employees: Employee[] }) {
   const [filters, setFilters] = useState<Record<FilterKey, string>>({
     businessUnit: '',
     department: '',
     location: '',
     costCenter: '',
-    legalEntity: '',
   });
   const [search, setSearch] = useState('');
 
@@ -306,10 +407,10 @@ function Directory() {
       }
       return true;
     });
-  }, [filters, search]);
+  }, [employees, filters, search]);
 
   const clearAll = () => {
-    setFilters({ businessUnit: '', department: '', location: '', costCenter: '', legalEntity: '' });
+    setFilters({ businessUnit: '', department: '', location: '', costCenter: '' });
     setSearch('');
   };
 
@@ -328,7 +429,7 @@ function Directory() {
                 className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-purple-400"
               >
                 <option value="">All</option>
-                {uniqueValues(key).map((v) => (
+                {uniqueValues(employees, key).map((v) => (
                   <option key={v} value={v}>
                     {v}
                   </option>
@@ -376,7 +477,6 @@ function Directory() {
                   <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Business Unit</th>
                   <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Location</th>
                   <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Cost Center</th>
-                  <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase">Legal Entity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -399,7 +499,6 @@ function Directory() {
                     <td className="px-5 py-3 text-sm text-gray-700">{e.businessUnit}</td>
                     <td className="px-5 py-3 text-sm text-gray-700">{e.location}</td>
                     <td className="px-5 py-3 text-sm text-gray-700">{e.costCenter}</td>
-                    <td className="px-5 py-3 text-sm text-gray-700">{e.legalEntity}</td>
                   </tr>
                 ))}
               </tbody>
@@ -413,11 +512,9 @@ function Directory() {
 
 /* ------------------------------ org chart ------------------------------ */
 
-const CURRENT_EMPLOYEE_ID = 8; // "Me" — Divya Menon
-const byId = (id: number) => employees.find((e) => e.id === id);
-
-function ancestorsOf(id: number): number[] {
-  const chain: number[] = [];
+function ancestorsOf(employees: Employee[], id: string): string[] {
+  const byId = (i: string) => employees.find((e) => e.id === i);
+  const chain: string[] = [];
   let cur = byId(id);
   while (cur?.managerId != null) {
     chain.push(cur.managerId);
@@ -426,15 +523,16 @@ function ancestorsOf(id: number): number[] {
   return chain;
 }
 
-function OrgChart() {
-  const me = byId(CURRENT_EMPLOYEE_ID)!;
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+function OrgChart({ employees, meId }: { employees: Employee[]; meId: string | null }) {
+  const byId = (id: string) => employees.find((e) => e.id === id);
+  const me = meId ? byId(meId) : undefined;
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [groupByDept, setGroupByDept] = useState(false);
   const [deptFocus, setDeptFocus] = useState(false);
-  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const [toast, setToast] = useState('');
 
-  const toggle = (id: number) =>
+  const toggle = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -442,14 +540,14 @@ function OrgChart() {
       return next;
     });
 
-  const expandTo = (id: number) =>
+  const expandTo = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
-      ancestorsOf(id).forEach((a) => next.delete(a));
+      ancestorsOf(employees, id).forEach((a) => next.delete(a));
       return next;
     });
 
-  const scrollToNode = (id: number) =>
+  const scrollToNode = (id: string) =>
     window.setTimeout(() => {
       document.getElementById(`org-node-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
     }, 60);
@@ -468,11 +566,12 @@ function OrgChart() {
   };
 
   const goMe = () => {
+    if (!meId) return;
     setGroupByDept(false);
     setDeptFocus(false);
-    expandTo(CURRENT_EMPLOYEE_ID);
-    setHighlightId(CURRENT_EMPLOYEE_ID);
-    scrollToNode(CURRENT_EMPLOYEE_ID);
+    expandTo(meId);
+    setHighlightId(meId);
+    scrollToNode(meId);
   };
 
   const exportChart = () => {
@@ -493,10 +592,13 @@ function OrgChart() {
     window.setTimeout(() => setToast(''), 2500);
   };
 
-  const deptFilter = deptFocus ? me.department : undefined;
+  // "Root" = no manager, or a manager outside what this viewer's scope can
+  // see (e.g. a self-scoped employee whose real manager isn't in the list).
+  const visibleIds = new Set(employees.map((e) => e.id));
+  const deptFilter = deptFocus ? me?.department : undefined;
   const roots = deptFilter
-    ? employees.filter((e) => e.department === deptFilter && byId(e.managerId ?? -1)?.department !== deptFilter)
-    : employees.filter((e) => e.managerId === null);
+    ? employees.filter((e) => e.department === deptFilter && (e.managerId ? byId(e.managerId)?.department : undefined) !== deptFilter)
+    : employees.filter((e) => e.managerId === null || !visibleIds.has(e.managerId));
 
   return (
     <div className="space-y-4">
@@ -565,6 +667,7 @@ function OrgChart() {
             <OrgNode
               key={r.id}
               employee={r}
+              employees={employees}
               collapsed={collapsed}
               onToggle={toggle}
               deptFilter={deptFilter}
@@ -616,6 +719,7 @@ function groupByDepartment(list: Employee[]) {
 
 function OrgNode({
   employee,
+  employees,
   collapsed,
   onToggle,
   deptFilter,
@@ -623,10 +727,11 @@ function OrgNode({
   grouped,
 }: {
   employee: Employee;
-  collapsed: Set<number>;
-  onToggle: (id: number) => void;
+  employees: Employee[];
+  collapsed: Set<string>;
+  onToggle: (id: string) => void;
   deptFilter?: string;
-  highlightId?: number | null;
+  highlightId?: string | null;
   grouped?: boolean;
 }) {
   const reports = employees.filter(
@@ -695,6 +800,7 @@ function OrgNode({
                     <OrgNode
                       key={child.id}
                       employee={child}
+                      employees={employees}
                       collapsed={collapsed}
                       onToggle={onToggle}
                       deptFilter={deptFilter}
@@ -722,6 +828,7 @@ function OrgNode({
               {single ? <div className="absolute top-0 left-1/2 w-px h-6 bg-gray-300" /> : null}
               <OrgNode
                 employee={child}
+                employees={employees}
                 collapsed={collapsed}
                 onToggle={onToggle}
                 deptFilter={deptFilter}
