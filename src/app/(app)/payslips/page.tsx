@@ -163,26 +163,36 @@ const CalendarIcon = () => (
   </svg>
 );
 
-const payslips = [
-  {
-    id: 1,
-    month: 'August 2026',
-    date: '2026-08-31',
-    salary: 45000,
-    deductions: 8200,
-    netPay: 36800,
-    status: 'paid',
-  },
-  {
-    id: 2,
-    month: 'July 2026',
-    date: '2026-07-31',
-    salary: 45000,
-    deductions: 8200,
-    netPay: 36800,
-    status: 'paid',
-  },
-];
+interface SalarySlip {
+  id: string;
+  month: string;
+  grossAmount: number;
+  totalDeductions: number;
+  netAmount: number;
+  status: 'draft' | 'approved' | 'paid' | 'cancelled';
+}
+
+interface SlipComponent {
+  id: string;
+  componentName: string;
+  componentType: 'earnings' | 'deduction' | 'tax';
+  amount: number;
+}
+
+const monthLabel = (month: string) => {
+  const [y, m] = month.split('-').map(Number);
+  if (!y || !m) return month;
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { credentials: 'include' });
+  const body = await res.json();
+  if (!res.ok || !body?.success) {
+    throw new Error(body?.error?.message || `Request to ${url} failed`);
+  }
+  return body.data as T;
+}
 
 const expenseSummary = [
   { type: 'Travel', amount: 5420, status: 'Approved', percentage: 45 },
@@ -236,10 +246,61 @@ export default function PayslipsPage() {
   const searchParams = useSearchParams();
   const [selectedTab, setSelectedTab] = useState('summary');
   const [expensesSubTab, setExpensesSubTab] = useState('summary');
-  const [selectedPayslip, setSelectedPayslip] = useState<number | null>(payslips[0].id);
   const [salaryExpanded, setSalaryExpanded] = useState(false);
   const [taxSubTab, setTaxSubTab] = useState('overview');
   const [taxFy, setTaxFy] = useState('FY2026');
+
+  const [slips, setSlips] = useState<SalarySlip[]>([]);
+  const [slipsLoading, setSlipsLoading] = useState(true);
+  const [slipsError, setSlipsError] = useState<string | null>(null);
+  const [selectedPayslip, setSelectedPayslip] = useState<string | null>(null);
+  const [breakdown, setBreakdown] = useState<SlipComponent[] | null>(null);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setSlipsLoading(true);
+        setSlipsError(null);
+        const data = await fetchJson<SalarySlip[]>('/api/payroll/slips');
+        if (cancelled) return;
+        setSlips(data);
+        setSelectedPayslip(data[0]?.id ?? null);
+      } catch (e) {
+        if (!cancelled) setSlipsError(e instanceof Error ? e.message : 'Failed to load payslips');
+      } finally {
+        if (!cancelled) setSlipsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPayslip) {
+      setBreakdown(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setBreakdownLoading(true);
+        const data = await fetchJson<{ components: SlipComponent[] }>(
+          `/api/payroll/slips/${selectedPayslip}/breakdown`
+        );
+        if (!cancelled) setBreakdown(data.components);
+      } catch {
+        if (!cancelled) setBreakdown(null);
+      } finally {
+        if (!cancelled) setBreakdownLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPayslip]);
 
   const fyLabel = financialYears.find((f) => f.id === taxFy)?.label ?? '';
   const td = taxDataByFy[taxFy];
@@ -277,7 +338,7 @@ export default function PayslipsPage() {
     }
   }, [searchParams]);
 
-  const currentPayslip = payslips.find(p => p.id === selectedPayslip);
+  const currentPayslip = slips.find(p => p.id === selectedPayslip);
   const totalExpenses = expenseSummary.reduce((sum, exp) => sum + exp.amount, 0);
   const approvedExpenses = expenseSummary.filter(exp => exp.status === 'Approved').reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -506,26 +567,39 @@ export default function PayslipsPage() {
                   <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
                     <h2 className="text-base font-bold text-slate-900">Payslips</h2>
                   </div>
-                  <div className="divide-y divide-gray-200">
-                    {payslips.map((payslip) => (
-                      <button
-                        key={payslip.id}
-                        onClick={() => setSelectedPayslip(payslip.id)}
-                        className={`w-full text-left px-4 py-3 transition-all ${
-                          selectedPayslip === payslip.id
-                            ? 'bg-purple-50 border-l-4 border-purple-600'
-                            : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="text-sm font-semibold text-slate-900">{payslip.month}</div>
-                        <div className="text-xs text-gray-600 mt-1">₹{payslip.netPay.toLocaleString()}</div>
-                        <div className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">
-                          <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                          {payslip.status}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+
+                  {slipsLoading && (
+                    <p className="text-sm text-gray-500 px-4 py-3">Loading...</p>
+                  )}
+                  {slipsError && !slipsLoading && (
+                    <p className="text-sm text-red-600 px-4 py-3">{slipsError}</p>
+                  )}
+                  {!slipsLoading && !slipsError && slips.length === 0 && (
+                    <p className="text-sm text-gray-500 px-4 py-3">No payslips yet.</p>
+                  )}
+
+                  {!slipsLoading && !slipsError && slips.length > 0 && (
+                    <div className="divide-y divide-gray-200">
+                      {slips.map((payslip) => (
+                        <button
+                          key={payslip.id}
+                          onClick={() => setSelectedPayslip(payslip.id)}
+                          className={`w-full text-left px-4 py-3 transition-all ${
+                            selectedPayslip === payslip.id
+                              ? 'bg-purple-50 border-l-4 border-purple-600'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="text-sm font-semibold text-slate-900">{monthLabel(payslip.month)}</div>
+                          <div className="text-xs text-gray-600 mt-1">₹{payslip.netAmount.toLocaleString()}</div>
+                          <div className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">
+                            <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                            {payslip.status}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -536,62 +610,61 @@ export default function PayslipsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h2 className="text-base font-bold text-slate-900">Payslip</h2>
-                          <p className="text-xs text-gray-500 mt-0.5">{currentPayslip.month}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{monthLabel(currentPayslip.month)}</p>
                         </div>
-                        <button className="px-3.5 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-all flex items-center gap-1.5">
-                          <DownloadIcon /> Download PDF
-                        </button>
                       </div>
                     </div>
 
                     <div className="p-5">
-                      <div className="grid grid-cols-2 gap-6 mb-5">
-                        <div>
-                          <h3 className="text-base font-bold text-slate-900 mb-3">Earnings</h3>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Base Salary</span>
-                              <span className="font-medium text-gray-900">₹{(currentPayslip.salary * 0.85).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Bonus</span>
-                              <span className="font-medium text-gray-900">₹{(currentPayslip.salary * 0.15).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
-                            </div>
-                            <div className="pt-2 border-t border-gray-200 flex justify-between">
-                              <span className="font-semibold text-gray-900">Gross</span>
-                              <span className="font-semibold text-emerald-600">₹{currentPayslip.salary.toLocaleString()}</span>
-                            </div>
-                          </div>
-                        </div>
+                      {breakdownLoading && (
+                        <p className="text-sm text-gray-500 mb-4">Loading breakdown...</p>
+                      )}
 
-                        <div>
-                          <h3 className="text-base font-bold text-slate-900 mb-3">Deductions</h3>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Income Tax (TDS)</span>
-                              <span className="font-medium text-gray-900">₹{(currentPayslip.deductions * 0.45).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
+                      {!breakdownLoading && (
+                        <div className="grid grid-cols-2 gap-6 mb-5">
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900 mb-3">Earnings</h3>
+                            <div className="space-y-2 text-sm">
+                              {(breakdown ?? [])
+                                .filter((c) => c.componentType === 'earnings')
+                                .map((c) => (
+                                  <div key={c.id} className="flex justify-between">
+                                    <span className="text-gray-600">{c.componentName}</span>
+                                    <span className="font-medium text-gray-900">₹{c.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                ))}
+                              <div className="pt-2 border-t border-gray-200 flex justify-between">
+                                <span className="font-semibold text-gray-900">Gross</span>
+                                <span className="font-semibold text-emerald-600">₹{currentPayslip.grossAmount.toLocaleString()}</span>
+                              </div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Provident Fund</span>
-                              <span className="font-medium text-gray-900">₹{(currentPayslip.deductions * 0.3).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Professional Tax</span>
-                              <span className="font-medium text-gray-900">₹{(currentPayslip.deductions * 0.25).toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
-                            </div>
-                            <div className="pt-2 border-t border-gray-200 flex justify-between">
-                              <span className="font-semibold text-gray-900">Total Deductions</span>
-                              <span className="font-semibold text-rose-600">-₹{currentPayslip.deductions.toLocaleString()}</span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900 mb-3">Deductions</h3>
+                            <div className="space-y-2 text-sm">
+                              {(breakdown ?? [])
+                                .filter((c) => c.componentType === 'deduction' || c.componentType === 'tax')
+                                .map((c) => (
+                                  <div key={c.id} className="flex justify-between">
+                                    <span className="text-gray-600">{c.componentName}</span>
+                                    <span className="font-medium text-gray-900">₹{c.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                                  </div>
+                                ))}
+                              <div className="pt-2 border-t border-gray-200 flex justify-between">
+                                <span className="font-semibold text-gray-900">Total Deductions</span>
+                                <span className="font-semibold text-rose-600">-₹{currentPayslip.totalDeductions.toLocaleString()}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 p-4">
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="text-xs text-gray-600">Net Pay</p>
-                            <p className="text-xl font-bold text-purple-600 mt-0.5">₹{currentPayslip.netPay.toLocaleString()}</p>
+                            <p className="text-xl font-bold text-purple-600 mt-0.5">₹{currentPayslip.netAmount.toLocaleString()}</p>
                           </div>
                           <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
                             <span className="text-white font-bold text-sm">✓</span>
