@@ -47,6 +47,10 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   href: string;
   roles: RequiredRole[];
+  /** Also require {kind:'org'} scope, e.g. an org-wide employee directory a
+   * team-scoped Admin shouldn't see even though their role otherwise would
+   * grant access — see useRequireAccess for the matching route guard. */
+  requireOrgScope?: boolean;
   badge?: number;
   children?: { label: string; href: string }[];
 }
@@ -89,7 +93,7 @@ const navItems: NavItem[] = [
       { label: 'Organization Documents', href: '/org?tab=documents' },
     ],
   },
-  { id: 'org', label: 'Organization', icon: TeamIcon, href: '/employees', roles: ['superadmin'] },
+  { id: 'org', label: 'Organization', icon: TeamIcon, href: '/employees', roles: ['superadmin'], requireOrgScope: true },
   { id: 'engage', label: 'Engage', icon: MessageCircleIcon, href: '/engage', roles: ['admin', 'employee', 'superadmin'] },
   { id: 'apps', label: 'Apps', icon: GridIcon, href: '/apps', roles: ['admin', 'employee', 'superadmin'] },
 ];
@@ -127,7 +131,7 @@ function getPageTitle(pathname: string) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, hasOrgScope } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -174,7 +178,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  const filteredNavItems = navItems.filter((item) => !!user && item.roles.includes(user.role as RequiredRole));
+  const filteredNavItems = navItems.filter(
+    (item) =>
+      !!user &&
+      item.roles.includes(user.role as RequiredRole) &&
+      (!item.requireOrgScope || hasOrgScope()),
+  );
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 

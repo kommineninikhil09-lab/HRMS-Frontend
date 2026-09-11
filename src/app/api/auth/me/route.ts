@@ -46,6 +46,11 @@ export async function GET(req: NextRequest) {
         lastName: u.lastName,
         role,
         permissions: u.permissions || [],
+        // {kind:'org'} / {kind:'team', employeeIds} / {kind:'self'} - the one
+        // resolved scope value for this user's requests (see backend P2-04).
+        // Falls back to self, matching the backend's own fail-closed default,
+        // for callers against an older backend that doesn't send it yet.
+        scope: u.scope || { kind: 'self' },
       },
     });
 

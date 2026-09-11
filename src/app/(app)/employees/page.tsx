@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePermission } from '@/lib/auth/usePermission';
+import { useRequireAccess } from '@/lib/auth/useRequireAccess';
 
 const SearchIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -46,8 +46,10 @@ function toNameMap(entities: NamedEntity[]): Record<string, string> {
 }
 
 export default function EmployeesPage() {
-  // Organization-wide employee directory — Super Admin only.
-  const { hasAccess, isLoading: permissionLoading } = usePermission(['superadmin']);
+  // Organization-wide employee directory — requires org scope, not a
+  // specific role, since a team-scoped Admin would only ever see their own
+  // resolved set through the underlying API regardless.
+  const { hasAccess, isLoading: permissionLoading } = useRequireAccess({ requireOrgScope: true });
   const [selectedTab, setSelectedTab] = useState('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Record<string, string>>({});
