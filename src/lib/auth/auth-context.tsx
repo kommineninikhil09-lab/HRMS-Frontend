@@ -2,6 +2,11 @@
 
 import { createContext, useState, useEffect, type ReactNode } from 'react';
 
+export type ManagementScope =
+  | { kind: 'org' }
+  | { kind: 'team'; employeeIds: string[] }
+  | { kind: 'self' };
+
 export interface User {
   id: string;
   email: string;
@@ -9,6 +14,7 @@ export interface User {
   lastName: string;
   role: string;
   permissions: string[];
+  scope: ManagementScope;
 }
 
 export interface AuthContextType {
@@ -18,6 +24,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
+  hasOrgScope: () => boolean;
   updateProfile: (updates: { firstName: string; lastName: string }) => Promise<void>;
 }
 
@@ -93,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user.permissions.includes(permission);
   };
 
+  const hasOrgScope = (): boolean => {
+    return user?.scope.kind === 'org';
+  };
+
   const updateProfile = async (updates: { firstName: string; lastName: string }) => {
     const response = await fetch('/api/users/me', {
       method: 'PATCH',
@@ -119,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         hasPermission,
+        hasOrgScope,
         updateProfile,
       }}
     >
