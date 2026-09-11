@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
+import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import {
   HomeIcon,
   InboxIcon,
@@ -25,7 +26,6 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   SearchIcon,
-  BellIcon,
   FingerprintIcon,
 } from '@/components/icons';
 
@@ -392,16 +392,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <FingerprintIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Quick Check In</span>
             </button>
-            <button
-              onClick={() => router.push('/notifications')}
-              className="relative p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-              title="Notifications"
-            >
-              <BellIcon className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold">
-                4
-              </span>
-            </button>
+            <NotificationsDropdown />
             <div className="pl-2 sm:pl-3 border-l border-slate-200">
               <ProfileDropdown />
             </div>
