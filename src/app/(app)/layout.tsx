@@ -67,7 +67,6 @@ const navItems: NavItem[] = [
       { label: 'Summary', href: '/payslips?tab=summary' },
       { label: 'My Pay', href: '/payslips?tab=pay' },
       { label: 'Manage Tax', href: '/payslips?tab=tax' },
-      { label: 'Expenses & Travel', href: '/payslips?tab=expenses' },
     ],
   },
   {
@@ -76,11 +75,6 @@ const navItems: NavItem[] = [
     icon: TrendingUpIcon,
     href: '/performance',
     roles: ['admin', 'employee', 'superadmin'],
-    children: [
-      { label: 'Performance', href: '/performance' },
-      { label: 'Learning', href: '/learning' },
-      { label: 'Career', href: '/career' },
-    ],
   },
   { id: 'team', label: 'My Team', icon: TeamIcon, href: '/team', roles: ['admin', 'employee', 'superadmin'] },
   {
